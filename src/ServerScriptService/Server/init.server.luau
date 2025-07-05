@@ -300,17 +300,94 @@ end
 --------------------------------------------------------------------------------
 
 do --> Init Towers
+	local WINPAD_DEBOUNCE = 0.5
+
+	function getTowerName(portal: BasePart): string | nil
+		local NameChecked = "TowerName"
+
+		if portal:GetAttribute(NameChecked) then
+			return portal:GetAttribute(NameChecked) :: string
+		elseif portal:FindFirstChild(NameChecked) then
+			if portal:FindFirstChild(NameChecked):IsA("StringValue") then
+				return (portal:FindFirstChild(NameChecked) :: StringValue).Value
+			end
+		end
+
+		return nil
+	end
+
+	function initWinpad(winpad: BasePart)
+		if not winpad then
+			return
+		end
+
+		winpad:SetAttribute("Debounce", false)
+		winpad.Touched:Connect(function(Hit)
+			if winpad:GetAttribute("Debounce") then
+				return
+			end
+
+			local towerName = getTowerName(winpad)
+
+			if towerName == nil then
+				return
+			end
+
+			if not Hit then
+				return
+			end
+			if not Hit.Parent or not Hit.Parent:IsA("Model") or not Hit.Parent:FindFirstChildOfClass("Humanoid") then
+				return
+			end
+
+			local character = Hit.Parent
+			local player = Players:GetPlayerFromCharacter(Hit.Parent)
+
+			if not character or not player then
+				return
+			end
+			if player:GetAttribute("CurrentTower") ~= towerName then
+				return
+			end
+
+			winpad:SetAttribute("Debounce", true)
+
+			player:SetAttribute("CurrentTower", "")
+			player:LoadCharacter()
+
+			task.delay(WINPAD_DEBOUNCE, function()
+				winpad:SetAttribute("Debounce", false)
+			end)
+		end)
+	end
+
+	function initTower(tower: Folder)
+		do --> Init ClientSidedObjects
+			local clientSidedObjects = tower:FindFirstChild("ClientSidedObjects")
+
+			if tower:FindFirstChild("ClientSidedObjects") then
+				local towerLink = Instance.new("ObjectValue")
+				towerLink.Name = "TowerLink"
+				towerLink.Value = tower
+				towerLink.Parent = clientSidedObjects
+
+				clientSidedObjects.Name = tower.Name
+				clientSidedObjects.Parent = ServerStorage.ClientObjects
+			end
+		end
+
+		do --> Init Winpad
+			local winpad = tower:FindFirstChild("WinPad", true) or tower:FindFirstChild("Winpad", true)
+
+			if winpad then
+				initWinpad(winpad)
+			end
+		end
+	end
+
 	for _, tower in pairs(workspace.Towers:GetChildren()) do
-		local clientSidedObjects = tower:FindFirstChild("ClientSidedObjects")
-
-		if tower:FindFirstChild("ClientSidedObjects") then
-			local towerLink = Instance.new("ObjectValue")
-			towerLink.Name = "TowerLink"
-			towerLink.Value = tower
-			towerLink.Parent = clientSidedObjects
-
-			clientSidedObjects.Name = tower.Name
-			clientSidedObjects.Parent = ServerStorage.ClientObjects
+		if tower:HasTag("Tower") then
+			initTower(tower)
 		end
 	end
 end
@@ -319,4 +396,73 @@ do --> Init Tower Loading
 	Namespace.packets.FinishedLoading.listen(function(_data, player: Player?)
 		player:SetAttribute("LoadingTower", false)
 	end)
+end
+
+--------------------------------------------------------------------------------
+
+do --> Init Portals
+	local PORTAL_DEBOUNCE = 0.5
+
+	function getTowerName(portal: BasePart): string | nil
+		local NameChecked = "TowerName"
+
+		if portal:GetAttribute(NameChecked) then
+			return portal:GetAttribute(NameChecked) :: string
+		elseif portal:FindFirstChild(NameChecked) then
+			if portal:FindFirstChild(NameChecked):IsA("StringValue") then
+				return (portal:FindFirstChild(NameChecked) :: StringValue).Value
+			end
+		end
+
+		return nil
+	end
+
+	function initPortal(portal: BasePart)
+		if not portal then
+			return
+		end
+
+		local towerName = getTowerName(portal)
+
+		if towerName == nil then
+			return
+		end
+
+		portal:SetAttribute("Debounce", false)
+		portal.Touched:Connect(function(Hit)
+			if portal:GetAttribute("Debounce") then
+				return
+			end
+
+			if not Hit then
+				return
+			end
+			if not Hit.Parent or not Hit.Parent:IsA("Model") or not Hit.Parent:FindFirstChildOfClass("Humanoid") then
+				return
+			end
+
+			local character = Hit.Parent
+			local player = Players:GetPlayerFromCharacter(Hit.Parent)
+
+			if not character or not player then
+				return
+			end
+			if player:GetAttribute("CurrentTower") == towerName then
+				return
+			end
+
+			portal:SetAttribute("Debounce", true)
+			player:SetAttribute("CurrentTower", towerName)
+
+			task.delay(PORTAL_DEBOUNCE, function()
+				portal:SetAttribute("Debounce", false)
+			end)
+		end)
+	end
+
+	for _, portal in pairs(workspace.Portals:GetChildren()) do
+		if portal:IsA("BasePart") and portal:HasTag("TowerPortal") then
+			initPortal(portal)
+		end
+	end
 end
