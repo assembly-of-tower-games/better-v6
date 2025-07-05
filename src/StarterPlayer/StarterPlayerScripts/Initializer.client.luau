@@ -25,8 +25,8 @@ local StarterGui = game:GetService("StarterGui")
 local Workspace = game:GetService("Workspace")
 
 local Framework = ReplicatedStorage.Framework
-local Remotes = Framework.Remotes
-local Namespace = require(Remotes.Towers)
+local Namespaces = Framework.Namespaces
+local TowersNamespace = require(Namespaces.Towers)
 
 local Kit = ReplicatedStorage.Framework.Kit
 local KitSettings = require(ReplicatedStorage.KitSettings)
@@ -72,7 +72,7 @@ local function requestObjects()
 	local receivedObjects = nil
 	local connection = nil
 
-	Namespace.packets.RequestCOFolder.send("request")
+	TowersNamespace.packets.RequestCOFolder.send("request")
 
 	connection = Players.LocalPlayer.PlayerGui.ChildAdded:Connect(function(Child)
 		if Child:IsA("Folder") and Child:HasTag("ClientObjects") then
@@ -90,7 +90,7 @@ local function requestObjects()
 	local objects = receivedObjects:Clone()
 
 	receivedObjects:Destroy()
-	Namespace.packets.RequestCOFolder.send("cleanup")
+	TowersNamespace.packets.RequestCOFolder.send("cleanup")
 
 	objectScope = ClientObjectManager:LoadClientObjects(
 		objects,
@@ -102,7 +102,7 @@ local function requestObjects()
 	currentlyLoading = false
 	receivedObjects = nil
 
-	Namespace.packets.FinishedLoading.send()
+	TowersNamespace.packets.FinishedLoading.send()
 end
 
 if Players.LocalPlayer:GetAttribute("CurrentTower") ~= "" then

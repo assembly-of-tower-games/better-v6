@@ -49,8 +49,8 @@ local Config = require(Framework.Kit.Utility.Config)
 local GuiManager = require(Framework.Kit.Managers.GuiManager)
 local _TDefs = require(script.TypeDefs)
 
-local Remotes = Framework.Remotes
-local Namespace = require(Remotes.Towers)
+local Namespaces = Framework.Namespaces
+local TowersNamespace = require(Namespaces.Towers)
 
 --[[
 ---------------------------------------------------------------------------
@@ -178,9 +178,9 @@ function CharacterManager:Damage(damage: BasePart | string | number)
 	end
 	
 	if typeof(damageAmount) == "string" then
-		Namespace.packets.DamageEventS.send(damageAmount)
+		TowersNamespace.packets.DamageEventS.send(damageAmount)
 	elseif typeof(damageAmount) == "number" then
-		Namespace.packets.DamageEvent.send(damageAmount)
+		TowersNamespace.packets.DamageEvent.send(damageAmount)
 	end
 end
 

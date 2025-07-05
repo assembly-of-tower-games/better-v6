@@ -32,10 +32,10 @@ local StorageUtils = require(Utility:WaitForChild("Storage"))
 local WebhookUtils = require(Utility:WaitForChild("Webhooks"))
 
 local Framework = ReplicatedStorage.Framework
-local Remotes = Framework.Remotes
+local Namespaces = Framework.Namespaces
 
-local Namespace = require(Remotes.Towers)
-local RejoinNamespace = require(Remotes.Rejoin)
+local TowersNamespace = require(Namespaces.Towers)
+local RejoinNamespace = require(Namespaces.Rejoin)
 
 local VERSION_NUMBER = "6.0.0"
 
@@ -93,10 +93,10 @@ do --> Damage Event
 		end
 	end
 
-	Namespace.packets.DamageEvent.listen(function(data: number, player: Player?)
+	TowersNamespace.packets.DamageEvent.listen(function(data: number, player: Player?)
 		handleDamage(player :: Player, data)
 	end)
-	Namespace.packets.DamageEventS.listen(function(data: string, player: Player?)
+	TowersNamespace.packets.DamageEventS.listen(function(data: string, player: Player?)
 		handleDamage(player :: Player, data)
 	end)
 end
@@ -112,9 +112,6 @@ end
 --------------------------------------------------------------------------------
 
 do --> Create Player Configuration Folder
-	local CONFIGURATION_DISABLER = require(script.ConfigBlacklist)
-	local Hash = require(script.ConfigBlacklist.Hash)
-
 	local function onPlayerAdded(player: Player)
 		local configurationFolder = Instance.new("Configuration")
 		configurationFolder.Name = "KitConfiguration"
@@ -225,7 +222,7 @@ do --> Handle Tower Client Objects
 	--> Listen to client requests
 	local clones = {} :: { [Player]: Instance? }
 
-	Namespace.packets.RequestCOFolder.listen(function(request: string, player: Player?)
+	TowersNamespace.packets.RequestCOFolder.listen(function(request: string, player: Player?)
 		if request == "request" then
 			local clientObjectsFolder = getPlayerCOs(player)
 
@@ -416,7 +413,7 @@ do --> Init Towers
 end
 
 do --> Init Tower Loading
-	Namespace.packets.FinishedLoading.listen(function(_data, player: Player?)
+	TowersNamespace.packets.FinishedLoading.listen(function(_data, player: Player?)
 		player:SetAttribute("LoadingTower", false)
 	end)
 end
