@@ -286,12 +286,18 @@ function LightingManager:Init()
 
 				effectInstance.Name = `LC{effect}`
 				effectInstance.Parent = Lighting
+
 				lightingInstances[effect] = effectInstance
 			end
 		end
 
 		defaultProperties[effect] = defaultPropertyTable
 	end
+
+	(ReplicatedStorage.ChangeLighting :: BindableEvent).Event:Connect(function(config: _TDefs.LightingConfiguration)
+		print(config)
+		LightingManager:ChangeLighting(config)
+	end)
 
 	return LightingManager
 end

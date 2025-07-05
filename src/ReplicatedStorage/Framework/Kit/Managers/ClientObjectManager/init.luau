@@ -31,6 +31,7 @@ local RunService = game:GetService("RunService")
 
 local Framework = ReplicatedStorage.Framework
 local _TDefs = require(script.TypeDefs)
+local V5Loader = require(script.V5.Loader)
 
 local Kit = Framework.Kit
 local ScopeConstructor = require(Kit.Managers.ScopeConstructor)
@@ -233,7 +234,7 @@ function ClientObjectManager:LoadClientObjects(
 		from.Parent = script
 	end
 
-	local Loader = require(script.V5.Loader)
+	
 	local thisRepository = getRepository(towerRepository)
 	local rootScope = ScopeConstructor.new({
 		tower = tower,
@@ -244,10 +245,8 @@ function ClientObjectManager:LoadClientObjects(
 	--> Scan folder for repo scripts
 	for _, clientObject in pairs(from:GetDescendants()) do
 		if clientObject:IsA("ModuleScript") and clientObject:HasTag("ClientObjectScript") then
-			print(clientObject:GetFullName() .. " is a client object")
-
 			task.spawn(function()
-				Loader:LoadScript(clientObject.Parent, clientObject)
+				V5Loader:LoadScript(clientObject.Parent :: Instance, clientObject)
 			end)
 		elseif
 			clientObject:IsA("ObjectValue")
@@ -255,11 +254,9 @@ function ClientObjectManager:LoadClientObjects(
 			and clientObject.Value:IsA("ModuleScript")
 			and clientObject.Value:HasTag("ClientObjectScript")
 		then
-			print(clientObject:GetFullName() .. " is a client object pointer")
-			print(clientObject.Value:GetFullName() .. " is the real client object")
 
 			task.spawn(function()
-				Loader:LoadScript(clientObject.Parent, clientObject.Value)
+				V5Loader:LoadScript(clientObject.Parent :: Instance, clientObject.Value)
 			end)
 		end
 
@@ -277,7 +274,6 @@ function ClientObjectManager:LoadClientObjects(
 				or clientObject:FindFirstChild("Invisible")
 			then
 				clientObject:AddTag("Invisible")
-				clientObject.Transparency = 1
 
 				if clientObject:FindFirstChild("invisible") then
 					clientObject:FindFirstChild("invisible"):Destroy()
@@ -290,6 +286,16 @@ function ClientObjectManager:LoadClientObjects(
 	end
 
 	ClientObjectManager:ScanFolder(rootScope, from, target)
+
+	for i, tag in { "Invisible", "AltInvisible" } do
+		local property = if i == 2 then "LocalTransparencyModifier" else "Transparency" 
+		
+		for _, instance in CollectionService:GetTagged(tag) do 
+			if instance:IsA("BasePart") then
+				instance[property] = 1
+			end
+		end
+	end
 
 	from:Destroy()
 
@@ -310,6 +316,10 @@ function ClientObjectManager:LoadClientObjects(
 	end)
 
 	return rootScope
+end
+
+function ClientObjectManager:Unload()
+	--V5Loader:Unload()
 end
 
 function ClientObjectManager:Init()

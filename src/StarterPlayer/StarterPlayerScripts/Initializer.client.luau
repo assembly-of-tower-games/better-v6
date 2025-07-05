@@ -26,7 +26,9 @@ local Workspace = game:GetService("Workspace")
 
 local Framework = ReplicatedStorage.Framework
 local Namespaces = Framework.Namespaces
+
 local TowersNamespace = require(Namespaces.Towers)
+local TimerNamespace = require(Namespaces.Timer)
 
 local Kit = ReplicatedStorage.Framework.Kit
 local KitSettings = require(ReplicatedStorage.KitSettings)
@@ -122,6 +124,8 @@ Players.LocalPlayer.CharacterAdded:Connect(function()
 	LightingManager:ResetLighting()
 	ClientParts:ClearAllChildren()
 
+	ClientObjectManager:Unload()
+
 	if
 		(KitSettings.ResetOnDeath and towerName == Players.LocalPlayer:GetAttribute("CurrentTower"))
 		or (Players.LocalPlayer:GetAttribute("LoadingTower"))
@@ -130,4 +134,8 @@ Players.LocalPlayer.CharacterAdded:Connect(function()
 			task.defer(requestObjects)
 		end
 	end
+
+	TimerNamespace.packets.CorrectTimer.listen(function(data: number)
+		--print(game.Players.LocalPlayer.Name .. "'s time is now " .. tostring(data))
+	end)
 end)

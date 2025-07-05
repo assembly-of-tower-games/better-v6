@@ -9,16 +9,32 @@ return {
 
 	-- Discord Webhooks
 	Webhooks = {
-		Message = "{DisplayName} *(@{Username})* beat {TowerName} ({Difficulty} in {Time}!",
+		Message = "{DisplayName} *(@{Username})* beat **{TowerName}** [{DifficultyEmoji}] in `{Time}`!",
 
-		Normal = "https://webhook.lewisakura.moe/api/webhooks/1244358093467553975/iw8FAEZYqU0Ps90lhHGcEIcAt0F3kJPl4I59uF-LbSbidVkkinBqIU-cHRU1q7MKZHHE",
-		SC = "https://webhook.lewisakura.moe/api/webhooks/1246041571556593676/2Q0SPJLMvkHC_shZ5ALM6g1YfV1E8Yhl4U8_Glt68LrmS09pBve0LYy5qqNJPjiGm6a5",
+		Normal = "https://webhook.lewisakura.moe/api/webhooks/1373715043581034616/XP-Jdk7uIX5S9e0eKoZspF0El4UZS8bo-h1fLJ-gOMsq7VO6YKnQpcAgda3d4xmRqQ-l",
+		SC = "https://webhook.lewisakura.moe/api/webhooks/1373715043581034616/XP-Jdk7uIX5S9e0eKoZspF0El4UZS8bo-h1fLJ-gOMsq7VO6YKnQpcAgda3d4xmRqQ-l",
 
 		Testing = {
-			Message = "[TESTING] {DisplayName} *(@{Username})* beat {TowerName} ({Difficulty}) in {Time}!",
+			Message = "[TESTING] {DisplayName} *(@{Username})* beat **{TowerName}** [{DifficultyEmoji}] in `{Time}`!",
 
 			Normal = "https://webhook.lewisakura.moe/api/webhooks/1373715043581034616/XP-Jdk7uIX5S9e0eKoZspF0El4UZS8bo-h1fLJ-gOMsq7VO6YKnQpcAgda3d4xmRqQ-l",
 			SC = "https://webhook.lewisakura.moe/api/webhooks/1373715043581034616/XP-Jdk7uIX5S9e0eKoZspF0El4UZS8bo-h1fLJ-gOMsq7VO6YKnQpcAgda3d4xmRqQ-l"
+		},
+
+		Difficulties = {
+			Easy = "1297256622019711056",
+			Medium = "1297256645482512465",
+			Hard = "1297256668220100638",
+			Difficult = "1297256685693571127",
+			Challenging = "1297256698494582944",
+			Intense = "1297256710150291456",
+			Remorseless = "1297256727531622422",
+			Insane = "1297256741842587659",
+			Extreme = "1297256758263283764",
+			Terrifying = "1297256774310690896",
+			Catastrophic = "1297256788009291777",
+			Horrific = "",
+			Unreal = ""
 		}
 	}
 }

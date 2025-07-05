@@ -17,11 +17,7 @@ local ThreadTemplate = script.Parent.Thread
 local Repo = script.Parent.ScriptRepo
 
 function Loader:LoadScript(Object: Instance, Context: Context)
-	print("A")
-
 	local Body: ModuleScript
-
-	print("B")
 
 	if Context:IsA("StringValue") then
 		local RepoScript: Instance? = Repo:FindFirstChild(Context.Value)
@@ -40,8 +36,6 @@ function Loader:LoadScript(Object: Instance, Context: Context)
 		Body = Context
 	end
 
-	print("C")
-
 	local ClonedThread = ThreadTemplate:Clone()
 	local Thread = require(ClonedThread :: ModuleScript) :: Thread
 
@@ -51,19 +45,10 @@ function Loader:LoadScript(Object: Instance, Context: Context)
 	ClonedThread.Name = HTTPService:GenerateGUID(false)
 	ClonedThread.Parent = PointerLink.Value
 
-	print("D")
-
-	print(Body.ClassName)
-	print(Context.ClassName)
-	
-	print("E")
-
-	Thread.init(Body)
+	Thread.init(Body, Object)
 	Thread.run()
-
-	print("F")
+	
 	table.insert(Loader.Threads, Thread)
-	print("G")
 end
 
 function Loader:Unload()	

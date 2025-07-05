@@ -6,19 +6,9 @@ type WebhookData = {
 local HttpService = game:GetService("HttpService")
 local WebhooksUtil = {}
 
-function WebhooksUtil:IsValidURL(URL: string): boolean
-    local ProxyDomain = "https://webhook.lewisakura.moe"
-
-    return string.sub(URL, 1, #ProxyDomain) ~= ProxyDomain
-end
-
 function WebhooksUtil:Post(Data: WebhookData): boolean
     local Message = Data.Message
     local URL = Data.URL
-
-    if not WebhooksUtil:IsValidURL(URL) then 
-        return false
-    end
 
     local MessageData = {
         content = Message

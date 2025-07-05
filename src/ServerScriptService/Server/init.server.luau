@@ -36,8 +36,50 @@ local Namespaces = Framework.Namespaces
 
 local TowersNamespace = require(Namespaces.Towers)
 local RejoinNamespace = require(Namespaces.Rejoin)
+local TimerNamespace = require(Namespaces.Timer)
 
 local VERSION_NUMBER = "6.0.0"
+local timers = {}
+
+--------------------------------------------------------------------------------
+
+function findValue(parent: BasePart, name: string): string | nil
+	if parent:GetAttribute(name) then
+		return parent:GetAttribute(name) :: string
+	elseif parent:FindFirstChild(name) then
+		if parent:FindFirstChild(name):IsA("StringValue") then
+			return (parent:FindFirstChild(name) :: StringValue).Value
+		end
+	end
+
+	return nil
+end
+
+function step(deltaTime: number)
+	for id, timer in pairs(timers) do
+		timers[id] = timer + deltaTime
+
+		local plr = Players:GetPlayerByUserId(id)
+
+		if plr then 
+			TimerNamespace.packets.CorrectTimer.sendTo(timers[id], plr)
+		end
+	end
+end
+
+function convertTime(seconds)
+	seconds = tonumber(seconds)
+
+	if seconds == nil then
+		return
+	end
+
+	local min = math.floor(seconds / 60)
+	local sec = seconds % 60
+	local ms = string.format("%.2f", tostring(seconds % 1)):sub(3, 4)
+
+	return string.format("%02i:%02i:%02i", min, sec, ms)
+end
 
 --------------------------------------------------------------------------------
 
@@ -148,11 +190,11 @@ do --> Handle Tower Client Objects
 		local pointerTemplate = Instance.new("ObjectValue")
 		pointerTemplate:AddTag("OBJ_POINTER")
 
-		local pointerContainer = Instance.new("Folder")
+		local pointerContainer = ReplicatedStorage:FindFirstChild("__POINTER_STORAGE") or Instance.new("Folder")
 		pointerContainer.Name = "__POINTER_STORAGE"
 		pointerContainer.Parent = ReplicatedStorage
 
-		local pointerLinkContainer = Instance.new("Folder")
+		local pointerLinkContainer = ReplicatedStorage:FindFirstChild("__POINTER_LINK_STORAGE") or Instance.new("Folder")
 		pointerLinkContainer.Name = "__POINTER_LINK_STORAGE"
 		pointerLinkContainer.Parent = ReplicatedStorage
 
@@ -187,7 +229,7 @@ do --> Handle Tower Client Objects
 			elseif instance:IsA("BasePart") then
 				partCount += 1
 
-				if instance.CollisionGroup == "Default" then
+				if instance.CollisionGroup == "Default" and not instance:FindFirstAncestor("LightingChangers") then
 					instance.CollisionGroup = "ClientObjects"
 				end
 
@@ -289,11 +331,18 @@ do --> Init Player Attributes
 			end
 		end)
 	end
+	function PlayerRemoving(player: Player)
+		if timers[player.UserId] then 
+			timers[player.UserId] = nil
+		end
+	end
 
 	for _, player in pairs(Players:GetPlayers()) do
 		task.spawn(PlayerAdded, player)
 	end
+
 	Players.PlayerAdded:Connect(PlayerAdded)
+	Players.PlayerRemoving:Connect(PlayerRemoving)
 end
 
 --------------------------------------------------------------------------------
@@ -301,34 +350,25 @@ end
 do --> Init Towers
 	local WINPAD_DEBOUNCE = 0.5
 
-	function findValue(parent: BasePart, name: string): string | nil
-		if parent:GetAttribute(name) then
-			return parent:GetAttribute(name) :: string
-		elseif parent:FindFirstChild(name) then
-			if parent:FindFirstChild(name):IsA("StringValue") then
-				return (parent:FindFirstChild(name) :: StringValue).Value
-			end
-		end
-
-		return nil
-	end
-
-	function onPlayerWin(player: Player, tower: Folder)
-		local difficulty = findValue(tower, "Difficulty")
+	function onPlayerWin(player: Player, plrTime: number, tower: Folder)
+		local difficulty = findValue(tower, "Difficulty") or "Easy"
+		local difficultyEmojiID = KitSettings.Webhooks.Difficulties[difficulty]
 		local name = findValue(tower, "ProperName") or tower.Name
+		local convertedTime = convertTime(plrTime)
 
 		local message = RunService:IsStudio() and KitSettings.Webhooks.Testing.Message or KitSettings.Webhooks.Message
-		local url = RunService:IsStudio()and KitSettings.Webhooks.Testing.Normal or KitSettings.Webhooks.Normal
+		local url = RunService:IsStudio() and KitSettings.Webhooks.Testing.Normal or KitSettings.Webhooks.Normal
 
 		message = string.gsub(message, "{DisplayName}", player.DisplayName)
 		message = string.gsub(message, "{Username}", player.Name)
 		message = string.gsub(message, "{TowerName}", name)
 		message = string.gsub(message, "{Difficulty}", difficulty)
-		message = string.gsub(message, "{Time}", "XX:XX.XX")
+		message = string.gsub(message, "{DifficultyEmoji}", string.format("<:%s:%s>", difficulty, difficultyEmojiID))
+		message = string.gsub(message, "{Time}", convertedTime)
 
 		WebhookUtils:Post({
 			Message = message,
-			URL = url
+			URL = url,
 		})
 
 		player:SetAttribute("CurrentTower", "")
@@ -340,7 +380,7 @@ do --> Init Towers
 			return
 		end
 
-		local towerName = getTowerName(winpad)
+		local towerName = findValue(winpad, "TowerName")
 
 		if towerName == nil then
 			return
@@ -373,7 +413,10 @@ do --> Init Towers
 			end
 
 			winpad:SetAttribute("Debounce", true)
-			onPlayerWin(player, workspace.Towers:FindFirstChild(towerName))
+			local plrTime = timers[player.UserId] or 0
+
+			timers[player.UserId] = nil
+			onPlayerWin(player, plrTime, workspace.Towers:FindFirstChild(towerName))
 
 			task.delay(WINPAD_DEBOUNCE, function()
 				winpad:SetAttribute("Debounce", false)
@@ -423,26 +466,12 @@ end
 do --> Init Portals
 	local PORTAL_DEBOUNCE = 0.5
 
-	function getTowerName(portal: BasePart): string | nil
-		local NameChecked = "TowerName"
-
-		if portal:GetAttribute(NameChecked) then
-			return portal:GetAttribute(NameChecked) :: string
-		elseif portal:FindFirstChild(NameChecked) then
-			if portal:FindFirstChild(NameChecked):IsA("StringValue") then
-				return (portal:FindFirstChild(NameChecked) :: StringValue).Value
-			end
-		end
-
-		return nil
-	end
-
 	function initPortal(portal: BasePart)
 		if not portal then
 			return
 		end
 
-		local towerName = getTowerName(portal)
+		local towerName = findValue(portal, "TowerName")
 
 		if towerName == nil then
 			return
@@ -475,7 +504,9 @@ do --> Init Portals
 			end
 
 			portal:SetAttribute("Debounce", true)
+
 			player:SetAttribute("CurrentTower", towerName)
+			timers[player.UserId] = 0
 
 			task.delay(PORTAL_DEBOUNCE, function()
 				portal:SetAttribute("Debounce", false)
@@ -488,4 +519,12 @@ do --> Init Portals
 			initPortal(portal)
 		end
 	end
+end
+
+--------------------------------------------------------------------------------
+
+do --> Step Function
+	RunService.Stepped:Connect(function(time, deltaTime)
+		step(deltaTime)
+	end)
 end

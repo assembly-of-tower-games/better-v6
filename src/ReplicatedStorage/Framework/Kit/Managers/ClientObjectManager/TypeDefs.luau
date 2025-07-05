@@ -37,6 +37,9 @@ export type ClientObjectsController = {
 		path: Instance,
 		targetPath: Instance?
 	) -> (),
+	Unload: (
+		self: ClientObjectsController
+	) -> (),
 	LoadClientObjects: (
 		self: ClientObjectsController,
 		from: Instance,
