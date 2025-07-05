@@ -110,7 +110,8 @@ function PropertyChanger.Run(scope: _T.Scope, utility: _T.Utility)
 	--> Get config module
 	local Config = utility.Config
 	local propertyPointer = utility.Instance.getPointer(changerConfig:FindFirstChild("Properties"))
-	if not propertyPointer or not propertyPointer:IsA("ModuleScript") then
+
+	if not propertyPointer then
 		scope:log({
 			"Property Changer is missing its 'Properties' module.",
 			`Path: {changerConfig:GetFullName()}`,

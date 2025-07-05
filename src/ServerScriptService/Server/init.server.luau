@@ -54,7 +54,7 @@ end
 
 do --> Damage Event
 	local debounceArray = {} :: { [Player]: boolean? }
-	
+
 	function handleDamage(player: Player, type: string | number)
 		if debounceArray[player] then
 			return
@@ -87,7 +87,7 @@ do --> Damage Event
 			humanoid.Health = humanoid.MaxHealth
 		end
 	end
-	
+
 	Namespace.packets.DamageEvent.listen(function(data: number, player: Player?)
 		handleDamage(player :: Player, data)
 	end)
@@ -127,17 +127,10 @@ end
 do --> Handle Tower Client Objects
 	--> Move client objects folder to where they need to go
 	local kitFolder = workspace:WaitForChild("TowerKit")
-	local v5KitFolder = workspace:WaitForChild("V5TowerKit")
-	
-	print(v5KitFolder:GetChildren())
-	
+
 	local clientObjectsFolder = kitFolder:WaitForChild("ClientSidedObjects")
 	clientObjectsFolder.Name = "ClientSidedObjects"
 	clientObjectsFolder.Parent = ServerStorage
-	
-	--local clientObjectsV5Folder = v5KitFolder:WaitForChild("ClientSidedObjects")
-	--clientObjectsV5Folder.Name = "V5ClientSidedObjects"
-	--clientObjectsV5Folder.Parent = ServerStorage
 
 	--> Make ModuleScript pointers
 	-- this is to help reduce memory usage when requiring modules !
@@ -150,6 +143,10 @@ do --> Handle Tower Client Objects
 	pointerContainer.Name = "__POINTER_STORAGE"
 	pointerContainer.Parent = ReplicatedStorage
 
+	local pointerLinkContainer = Instance.new("Folder")
+	pointerLinkContainer.Name = "__POINTER_LINK_STORAGE"
+	pointerLinkContainer.Parent = ReplicatedStorage
+
 	local warnings = {}
 	local version = clientObjectsFolder:GetAttribute("KitVersion")
 	if version ~= VERSION_NUMBER then
@@ -161,29 +158,35 @@ do --> Handle Tower Client Objects
 
 	local descendantCount = 0
 	local partCount = 0
+
 	for _, instance in clientObjectsFolder:GetDescendants() do
 		descendantCount += 1
+
 		if instance:IsA("ModuleScript") then
+			local pointerLink = pointerTemplate:Clone()
+			pointerLink.Value = instance.Parent
+			pointerLink.Name = instance.Parent.Name
+			pointerLink.Parent = pointerLinkContainer
+
 			local thisPointer = pointerTemplate:Clone()
 			thisPointer.Value = instance
 			thisPointer.Name = instance.Name
 			thisPointer.Parent = instance.Parent
-			instance.Name = instance:GetFullName():gsub("ServerStorage%.", "")
-			instance.Parent = pointerContainer
 
-			-- copy tags to pointer
-			for _, tag in instance:GetTags() do
-				thisPointer:AddTag(tag)
-				instance:RemoveTag(tag) -- dunno if i should keep this line
-			end
+			instance.Name = pointerLink.Name
+			--instance.Parent = pointerContainer
 		elseif instance:IsA("BasePart") then
 			partCount += 1
-			
+
 			if instance.CollisionGroup == "Default" then
 				instance.CollisionGroup = "ClientObjects"
 			end
-			
-			if instance.Name == "LightingChanger" or instance:FindFirstChild("invisible") or instance:FindFirstChild("Invisible") then
+
+			if
+				instance.Name == "LightingChanger"
+				or instance:FindFirstChild("invisible")
+				or instance:FindFirstChild("Invisible")
+			then
 				instance:AddTag("Invisible")
 
 				if instance:FindFirstChild("invisible") then
@@ -196,7 +199,7 @@ do --> Handle Tower Client Objects
 		elseif instance:IsA("NoCollisionConstraint") and instance:FindFirstAncestorOfClass("BasePart") then
 			instance:FindFirstAncestorOfClass("BasePart").CollisionGroup = "ClientObjects"
 			instance:FindFirstAncestorOfClass("BasePart").CanCollide = false
-			
+
 			instance:Destroy()
 		end
 	end
@@ -206,7 +209,7 @@ do --> Handle Tower Client Objects
 
 	--> Listen to client requests
 	local clones = {} :: { [Player]: Instance? }
-	
+
 	Namespace.packets.RequestCOFolder.listen(function(request: string, player: Player?)
 		if request == "request" then
 			local playerGui = player:WaitForChild("PlayerGui")
@@ -214,7 +217,7 @@ do --> Handle Tower Client Objects
 
 			clonedFolder:AddTag("ClientObjects")
 			clonedFolder.Parent = playerGui
-			
+
 			clones[player] = clonedFolder
 		elseif request == "cleanup" then
 			local clone = clones[player]

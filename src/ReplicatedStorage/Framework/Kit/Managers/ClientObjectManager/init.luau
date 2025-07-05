@@ -169,7 +169,7 @@ function ClientObjectManager:ScanFolder(targetScope: ScopeTypes.Scope, path: Ins
 			for _, instance in CollectionService:GetTagged("CO_" .. scriptPath) do
 				if not instance:IsDescendantOf(path) then
 					continue
-				end       
+				end
 				if activeScripts[scriptPath] and activeScripts[scriptPath][instance] then
 					continue
 				end
@@ -232,7 +232,7 @@ function ClientObjectManager:LoadClientObjects(
 		-- can detect instances (they should add a search parameter...)
 		from.Parent = script
 	end
-	
+
 	local Loader = require(script.V5.Loader)
 	local thisRepository = getRepository(towerRepository)
 	local rootScope = ScopeConstructor.new({
@@ -242,30 +242,55 @@ function ClientObjectManager:LoadClientObjects(
 	})
 
 	--> Scan folder for repo scripts
-	ClientObjectManager:ScanFolder(rootScope, from, target)
-	
 	for _, clientObject in pairs(from:GetDescendants()) do
-		if clientObject.Name == "ClientObjectScript" and clientObject:IsA("ModuleScript") then
-			Loader:LoadScript(clientObject)
-		elseif clientObject:IsA("NoCollisionConstraint") and clientObject:FindFirstAncestorOfClass("BasePart") then
+		if clientObject:IsA("ModuleScript") and clientObject:HasTag("ClientObjectScript") then
+			print(clientObject:GetFullName() .. " is a client object")
+
+			task.spawn(function()
+				Loader:LoadScript(clientObject.Parent, clientObject)
+			end)
+		elseif
+			clientObject:IsA("ObjectValue")
+			and clientObject.Value
+			and clientObject.Value:IsA("ModuleScript")
+			and clientObject.Value:HasTag("ClientObjectScript")
+		then
+			print(clientObject:GetFullName() .. " is a client object pointer")
+			print(clientObject.Value:GetFullName() .. " is the real client object")
+
+			task.spawn(function()
+				Loader:LoadScript(clientObject.Parent, clientObject.Value)
+			end)
+		end
+
+		if clientObject:IsA("NoCollisionConstraint") and clientObject:FindFirstAncestorOfClass("BasePart") then
 			clientObject:Destroy()
-			
-			clientObject:FindFirstAncestorOfClass("BasePart").CollisionGroup = "ClientObjects"
+
+			--clientObject:FindFirstAncestorOfClass("BasePart").CollisionGroup = "ClientObjects"
 			clientObject:FindFirstAncestorOfClass("BasePart").CanCollide = false
-		elseif clientObject:IsA("BasePart") then
-			if clientObject.Name == "LightingChanger" or clientObject:FindFirstChild("invisible") or clientObject:FindFirstChild("Invisible") then
+		end
+
+		if clientObject:IsA("BasePart") then
+			if
+				clientObject.Name == "LightingChanger"
+				or clientObject:FindFirstChild("invisible")
+				or clientObject:FindFirstChild("Invisible")
+			then
 				clientObject:AddTag("Invisible")
-				
+				clientObject.Transparency = 1
+
 				if clientObject:FindFirstChild("invisible") then
-					clientObject.invisible:Destroy()
+					clientObject:FindFirstChild("invisible"):Destroy()
 				end
 				if clientObject:FindFirstChild("Invisible") then
-					clientObject.Invisible:Destroy()
+					clientObject:FindFirstChild("Invisible"):Destroy()
 				end
 			end
 		end
 	end
-	
+
+	ClientObjectManager:ScanFolder(rootScope, from, target)
+
 	from:Destroy()
 
 	--> Load RunOnStart repo scripts

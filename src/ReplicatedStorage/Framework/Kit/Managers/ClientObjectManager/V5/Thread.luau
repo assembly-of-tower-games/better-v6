@@ -1,32 +1,49 @@
-local Context: Instance = script.Context.Value
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Janitor = require(ReplicatedStorage:WaitForChild("Libs"):WaitForChild("Janitor")) :: any
 
-local Types = require(script.Parent.Types)
-local Body: ModuleScript
+print(script:GetChildren())
 
-local Thread = {} :: Types.Thread
+local Context: ModuleScript
+local ThreadJanitor = nil
 
-Thread.link = script
+type Thread = {
+	init: () -> (),
+	run: () -> (),
+	cleanup: () -> (),
+}
 
-function Thread.init()
-	if Context:IsA("ModuleScript") then
-		Body = Context
-	end
-	
-	print(Context)
+local Thread = {} :: Thread
+
+function Thread.init(NewContext: ModuleScript)
+	Context = NewContext
+	ThreadJanitor = Janitor.new()
 end
 
 function Thread.run()
-	local Success, Error = pcall(function()
-		task.spawn(require(Body :: ModuleScript) :: any)
-	end)
-	
-	if not Success then
-		warn(string.format("[V5 Error] %s", Error))
+	if Context and ThreadJanitor then
+		task.spawn(function()
+			print(Context)
+
+			local Success, Error = pcall(function()
+				if Context then
+					(require(Context) :: any)()
+				else
+					error("No Context found")
+				end
+			end)
+
+			if not Success then
+				warn(string.format("[V5 Error] %s", Error))
+			end
+		end)
 	end
 end
 
 function Thread.cleanup()
-	Thread.link:Destroy()
+	if ThreadJanitor then
+		ThreadJanitor:Destroy()
+		ThreadJanitor = nil
+	end
 end
 
-return Thread 
+return Thread

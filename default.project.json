@@ -1,7 +1,9 @@
 {
-  "name": "project",
+  "name": "v6 Backwards Compatible Kit",
+
   "tree": {
     "$className": "DataModel",
+
     "ReplicatedStorage": {
       "$className": "ReplicatedStorage",
       "$ignoreUnknownInstances": true,
@@ -12,16 +14,19 @@
         "$ignoreUnknownInstances": true
       }
     },
+
     "ServerScriptService": {
       "$className": "ServerScriptService",
       "$ignoreUnknownInstances": true,
       "$path": "src/ServerScriptService"
     },
+
     "StarterPack": {
       "$className": "StarterPack",
       "$ignoreUnknownInstances": true,
       "$path": "src/StarterPack"
     },
+
     "StarterPlayer": {
       "$className": "StarterPlayer",
       "StarterPlayerScripts": {

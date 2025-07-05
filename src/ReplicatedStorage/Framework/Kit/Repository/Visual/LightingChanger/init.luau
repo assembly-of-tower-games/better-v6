@@ -62,7 +62,7 @@ function LightingChanger.Run(scope: _T.Scope, utility: _T.Utility)
 
 	--> Get Lighting Module
 	local lightingPointer = utility.Instance.getPointer(changerConfig:FindFirstChild("Lighting"))
-	if not lightingPointer or not lightingPointer:IsA("ModuleScript") then
+	if not lightingPointer then
 		scope:log({
 			"Lighting Changer is missing its 'Lighting' module.",
 			`Path: {changerConfig:GetFullName()}`,

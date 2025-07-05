@@ -6,3 +6,4 @@ realm = "shared"
 
 [dependencies]
 ByteNet = "elitriare/bytenet-max@0.2.3"
+Janitor = "howmanysmall/janitor@1.18.3"
