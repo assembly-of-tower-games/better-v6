@@ -326,6 +326,8 @@ do --> Init Towers
 		message = string.gsub(message, "{DisplayName}", player.DisplayName)
 		message = string.gsub(message, "{Username}", player.Name)
 		message = string.gsub(message, "{TowerName}", name)
+		message = string.gsub(message, "{Difficulty}", difficulty)
+		message = string.gsub(message, "{Time}", "XX:XX.XX")
 
 		WebhookUtils:Post({
 			Message = message,
