@@ -1,6 +1,6 @@
 return {
 	-- Kit behavior
-	ResetOnDeath = true,
+	ResetOnDeath = false,
 	DisplaySettingsGui = true,
 
 	-- Debug Config

@@ -57,7 +57,7 @@ local ClientParts = Workspace:FindFirstChild("ClientParts")
 
 --> Request server for objects
 local customRepository = ReplicatedStorage:FindFirstChild("ExternalRepositories")
-local towerName = "TowerKit"
+local towerName = ""
 
 local currentlyLoading = false
 local objectScope
@@ -66,6 +66,7 @@ local function requestObjects()
 	if currentlyLoading then
 		return
 	end
+
 	currentlyLoading = true
 
 	local receivedObjects = nil
@@ -76,13 +77,15 @@ local function requestObjects()
 	connection = Players.LocalPlayer.PlayerGui.ChildAdded:Connect(function(Child)
 		if Child:IsA("Folder") and Child:HasTag("ClientObjects") then
 			receivedObjects = Child
+			towerName = Child.TowerLink.Value.Name
+
 			connection:Disconnect()
 		end
 	end)
 
 	repeat
 		task.wait()
-	until receivedObjects
+	until receivedObjects and towerName
 
 	local objects = receivedObjects:Clone()
 
@@ -98,21 +101,33 @@ local function requestObjects()
 
 	currentlyLoading = false
 	receivedObjects = nil
+
+	Namespace.packets.FinishedLoading.send()
 end
 
-requestObjects()
+if Players.LocalPlayer:GetAttribute("CurrentTower") ~= "" then
+	requestObjects()
+end
 
 --> Reset objects on respawn
-if KitSettings.ResetOnDeath then
-	Players.LocalPlayer.CharacterAdded:Connect(function()
-		if objectScope then
-			objectScope:cleanup(false, true)
-			objectScope = nil :: any
+Players.LocalPlayer.CharacterAdded:Connect(function()
+	print(KitSettings.ResetOnDeath and towerName == Players.LocalPlayer:GetAttribute("CurrentTower"))
+	print(Players.LocalPlayer:GetAttribute("LoadingTower"))
+
+	if objectScope then
+		objectScope:cleanup(false, true)
+		objectScope = nil :: any
+	end
+
+	LightingManager:ResetLighting()
+	ClientParts:ClearAllChildren()
+
+	if
+		(KitSettings.ResetOnDeath and towerName == Players.LocalPlayer:GetAttribute("CurrentTower"))
+		or (Players.LocalPlayer:GetAttribute("LoadingTower"))
+	then
+		if Players.LocalPlayer:GetAttribute("CurrentTower") ~= "" then
+			task.defer(requestObjects)
 		end
-
-		LightingManager:ResetLighting()
-		ClientParts:ClearAllChildren()
-
-		task.defer(requestObjects)
-	end)
-end
+	end
+end)

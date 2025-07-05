@@ -21,6 +21,12 @@
       "$path": "src/ServerScriptService"
     },
 
+    "ServerStorage": {
+      "$className": "ServerStorage",
+      "$ignoreUnknownInstances": true,
+      "$path": "src/ServerStorage"
+    },
+
     "StarterPack": {
       "$className": "StarterPack",
       "$ignoreUnknownInstances": true,

@@ -15,6 +15,10 @@ return ByteNet.defineNamespace("Towers", function()
 			
 			RequestCOFolder = ByteNet.definePacket({
 				value = ByteNet.string
+			}),
+
+			FinishedLoading = ByteNet.definePacket({
+				value = ByteNet.nothing
 			})
 		},
 	}

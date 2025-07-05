@@ -26,6 +26,9 @@ local Workspace = game:GetService("Workspace")
 local COLLISION_MAP = require(script.CollisionGroupMap)
 local KitSettings = require(ReplicatedStorage.KitSettings)
 
+local Utility = ReplicatedStorage:WaitForChild("Utility")
+local StorageUtils = require(Utility:WaitForChild("Storage"))
+
 local Framework = ReplicatedStorage.Framework
 local Remotes = Framework.Remotes
 
@@ -126,92 +129,108 @@ end
 
 do --> Handle Tower Client Objects
 	--> Move client objects folder to where they need to go
-	local kitFolder = workspace:WaitForChild("TowerKit")
+	function getPlayerCOs(player: Player)
+		local tower = player:GetAttribute("CurrentTower") or ""
 
-	local clientObjectsFolder = kitFolder:WaitForChild("ClientSidedObjects")
-	clientObjectsFolder.Name = "ClientSidedObjects"
-	clientObjectsFolder.Parent = ServerStorage
-
-	--> Make ModuleScript pointers
-	-- this is to help reduce memory usage when requiring modules !
-	-- i'm still keeping repository scripts the way they are though because
-	-- this is meant for much smaller modules like lighting configurations
-	local pointerTemplate = Instance.new("ObjectValue")
-	pointerTemplate:AddTag("OBJ_POINTER")
-
-	local pointerContainer = Instance.new("Folder")
-	pointerContainer.Name = "__POINTER_STORAGE"
-	pointerContainer.Parent = ReplicatedStorage
-
-	local pointerLinkContainer = Instance.new("Folder")
-	pointerLinkContainer.Name = "__POINTER_LINK_STORAGE"
-	pointerLinkContainer.Parent = ReplicatedStorage
-
-	local warnings = {}
-	local version = clientObjectsFolder:GetAttribute("KitVersion")
-	if version ~= VERSION_NUMBER then
-		table.insert(warnings, {
-			"ClientObjects folder is missing its KitVersion Attribute or is outdated",
-			`Current version is: {VERSION_NUMBER}`,
-		})
-	end
-
-	local descendantCount = 0
-	local partCount = 0
-
-	for _, instance in clientObjectsFolder:GetDescendants() do
-		descendantCount += 1
-
-		if instance:IsA("ModuleScript") then
-			local pointerLink = pointerTemplate:Clone()
-			pointerLink.Value = instance.Parent
-			pointerLink.Name = instance.Parent.Name
-			pointerLink.Parent = pointerLinkContainer
-
-			local thisPointer = pointerTemplate:Clone()
-			thisPointer.Value = instance
-			thisPointer.Name = instance.Name
-			thisPointer.Parent = instance.Parent
-
-			instance.Name = pointerLink.Name
-			--instance.Parent = pointerContainer
-		elseif instance:IsA("BasePart") then
-			partCount += 1
-
-			if instance.CollisionGroup == "Default" then
-				instance.CollisionGroup = "ClientObjects"
-			end
-
-			if
-				instance.Name == "LightingChanger"
-				or instance:FindFirstChild("invisible")
-				or instance:FindFirstChild("Invisible")
-			then
-				instance:AddTag("Invisible")
-
-				if instance:FindFirstChild("invisible") then
-					instance.invisible:Destroy()
-				end
-				if instance:FindFirstChild("Invisible") then
-					instance.Invisible:Destroy()
-				end
-			end
-		elseif instance:IsA("NoCollisionConstraint") and instance:FindFirstAncestorOfClass("BasePart") then
-			instance:FindFirstAncestorOfClass("BasePart").CollisionGroup = "ClientObjects"
-			instance:FindFirstAncestorOfClass("BasePart").CanCollide = false
-
-			instance:Destroy()
+		if tower == "" then
+			return nil
 		end
-	end
 
-	ReplicatedStorage.KitSettings:SetAttribute("COPartCount", partCount)
-	ReplicatedStorage.KitSettings:SetAttribute("COInstanceCount", descendantCount)
+		local clientObjectsFolder = ServerStorage.ClientObjects:FindFirstChild(tower)
+
+		if not clientObjectsFolder then
+			return nil
+		end
+
+		--> Make ModuleScript pointers
+		-- this is to help reduce memory usage when requiring modules !
+		-- i'm still keeping repository scripts the way they are though because
+		-- this is meant for much smaller modules like lighting configurations
+		local pointerTemplate = Instance.new("ObjectValue")
+		pointerTemplate:AddTag("OBJ_POINTER")
+
+		local pointerContainer = Instance.new("Folder")
+		pointerContainer.Name = "__POINTER_STORAGE"
+		pointerContainer.Parent = ReplicatedStorage
+
+		local pointerLinkContainer = Instance.new("Folder")
+		pointerLinkContainer.Name = "__POINTER_LINK_STORAGE"
+		pointerLinkContainer.Parent = ReplicatedStorage
+
+		local warnings = {}
+		local version = clientObjectsFolder:GetAttribute("KitVersion")
+		if version ~= VERSION_NUMBER then
+			table.insert(warnings, {
+				"ClientObjects folder is missing its KitVersion Attribute or is outdated",
+				`Current version is: {VERSION_NUMBER}`,
+			})
+		end
+
+		local descendantCount = 0
+		local partCount = 0
+
+		for _, instance in clientObjectsFolder:GetDescendants() do
+			descendantCount += 1
+
+			if instance:IsA("ModuleScript") then
+				local pointerLink = pointerTemplate:Clone()
+				pointerLink.Value = instance.Parent
+				pointerLink.Name = instance.Parent.Name
+				pointerLink.Parent = pointerLinkContainer
+
+				local thisPointer = pointerTemplate:Clone()
+				thisPointer.Value = instance
+				thisPointer.Name = instance.Name
+				thisPointer.Parent = instance.Parent
+
+				instance.Name = pointerLink.Name
+				--instance.Parent = pointerContainer
+			elseif instance:IsA("BasePart") then
+				partCount += 1
+
+				if instance.CollisionGroup == "Default" then
+					instance.CollisionGroup = "ClientObjects"
+				end
+
+				if
+					instance.Name == "LightingChanger"
+					or instance:FindFirstChild("invisible")
+					or instance:FindFirstChild("Invisible")
+				then
+					instance:AddTag("Invisible")
+
+					if instance:FindFirstChild("invisible") then
+						instance.invisible:Destroy()
+					end
+					if instance:FindFirstChild("Invisible") then
+						instance.Invisible:Destroy()
+					end
+				end
+			elseif instance:IsA("NoCollisionConstraint") and instance:FindFirstAncestorOfClass("BasePart") then
+				instance:FindFirstAncestorOfClass("BasePart").CollisionGroup = "ClientObjects"
+				instance:FindFirstAncestorOfClass("BasePart").CanCollide = false
+
+				instance:Destroy()
+			end
+		end
+
+		ReplicatedStorage.KitSettings:SetAttribute("COPartCount", partCount)
+		ReplicatedStorage.KitSettings:SetAttribute("COInstanceCount", descendantCount)
+
+		return clientObjectsFolder
+	end
 
 	--> Listen to client requests
 	local clones = {} :: { [Player]: Instance? }
 
 	Namespace.packets.RequestCOFolder.listen(function(request: string, player: Player?)
 		if request == "request" then
+			local clientObjectsFolder = getPlayerCOs(player)
+
+			if not clientObjectsFolder then
+				return
+			end
+
 			local playerGui = player:WaitForChild("PlayerGui")
 			local clonedFolder = clientObjectsFolder:Clone()
 
@@ -228,5 +247,76 @@ do --> Handle Tower Client Objects
 
 			clones[player] = nil
 		end
+	end)
+end
+
+--------------------------------------------------------------------------------
+
+do --> Init ProfileStore
+	StorageUtils.init()
+end
+
+--------------------------------------------------------------------------------
+
+do --> Init Player Attributes
+	function CharacterAdded(character: Model)
+		local player = Players:GetPlayerFromCharacter(character)
+
+		if player then
+			task.defer(function()
+				if not KitSettings.ResetOnDeath and not player:GetAttribute("LoadingTower") then
+					player:SetAttribute("CurrentTower", "")
+				end
+			end)
+		end
+	end
+
+	function PlayerAdded(player: Player)
+		if player.Character then
+			task.spawn(CharacterAdded, player.Character)
+		end
+		player.CharacterAdded:Connect(CharacterAdded)
+
+		player:SetAttribute("CurrentTower", "")
+		player:SetAttribute("LoadingTower", false)
+
+		player:GetAttributeChangedSignal("CurrentTower"):Connect(function()
+			if
+				not player:GetAttribute("LoadingTower")
+				and ServerStorage.ClientObjects:FindFirstChild(player:GetAttribute("CurrentTower"))
+			then
+				player:SetAttribute("LoadingTower", true)
+				player:LoadCharacter()
+			end
+		end)
+	end
+
+	for _, player in pairs(Players:GetPlayers()) do
+		task.spawn(PlayerAdded, player)
+	end
+	Players.PlayerAdded:Connect(PlayerAdded)
+end
+
+--------------------------------------------------------------------------------
+
+do --> Init Towers
+	for _, tower in pairs(workspace.Towers:GetChildren()) do
+		local clientSidedObjects = tower:FindFirstChild("ClientSidedObjects")
+
+		if tower:FindFirstChild("ClientSidedObjects") then
+			local towerLink = Instance.new("ObjectValue")
+			towerLink.Name = "TowerLink"
+			towerLink.Value = tower
+			towerLink.Parent = clientSidedObjects
+
+			clientSidedObjects.Name = tower.Name
+			clientSidedObjects.Parent = ServerStorage.ClientObjects
+		end
+	end
+end
+
+do --> Init Tower Loading
+	Namespace.packets.FinishedLoading.listen(function(_data, player: Player?)
+		player:SetAttribute("LoadingTower", false)
 	end)
 end
