@@ -67,21 +67,25 @@ local function requestObjects()
 		return
 	end
 	currentlyLoading = true
-	
-	local result = {objects = nil, warnings = {}} :: {objects: Folder | nil, warnings: {any}}
+
+	local receivedObjects = nil
+	local connection = nil
 
 	Namespace.packets.RequestCOFolder.send("request")
-	Namespace.packets.RespondCOFolder.listen(function(data, _player: Player?)
-		result = data
+
+	connection = Players.LocalPlayer.PlayerGui.ChildAdded:Connect(function(Child)
+		if Child:IsA("Folder") and Child:HasTag("ClientObjects") then
+			receivedObjects = Child
+			connection:Disconnect()
+		end
 	end)
-	
+
 	repeat
 		task.wait()
-	until result
-	
-	local receivedObjects, warnings = result.objects, result.warnings
+	until receivedObjects
+
 	local objects = receivedObjects:Clone()
-	
+
 	receivedObjects:Destroy()
 	Namespace.packets.RequestCOFolder.send("cleanup")
 
@@ -91,19 +95,9 @@ local function requestObjects()
 		towerName,
 		customRepository:FindFirstChild(towerName)
 	)
-	
+
 	currentlyLoading = false
 	receivedObjects = nil
-	objects = nil
-
-	if warnings then
-		for _, warningTable in warnings do
-			objectScope:log({
-				warningTable.text,
-				type = warningTable.type
-			})
-		end
-	end
 end
 
 requestObjects()
@@ -118,7 +112,7 @@ if KitSettings.ResetOnDeath then
 
 		LightingManager:ResetLighting()
 		ClientParts:ClearAllChildren()
-		
+
 		task.defer(requestObjects)
 	end)
 end

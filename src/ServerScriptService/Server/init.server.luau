@@ -212,13 +212,10 @@ do --> Handle Tower Client Objects
 			local playerGui = player:WaitForChild("PlayerGui")
 			local clonedFolder = clientObjectsFolder:Clone()
 
+			clonedFolder:AddTag("ClientObjects")
 			clonedFolder.Parent = playerGui
-			clones[player] = clonedFolder
 			
-			Namespace.packets.RespondCOFolder.sendTo({
-				objects = clonedFolder,
-				warnings = warnings
-			}, player)
+			clones[player] = clonedFolder
 		elseif request == "cleanup" then
 			local clone = clones[player]
 
@@ -227,11 +224,6 @@ do --> Handle Tower Client Objects
 			end
 
 			clones[player] = nil
-			
-			Namespace.packets.RespondCOFolder.sendTo({
-				objects = nil,
-				warnings = {}
-			}, player)
 		end
 	end)
 end

@@ -15,16 +15,6 @@ return ByteNet.defineNamespace("Towers", function()
 			
 			RequestCOFolder = ByteNet.definePacket({
 				value = ByteNet.string
-			}),
-			RespondCOFolder = ByteNet.definePacket({
-				value = ByteNet.struct({
-					objects = ByteNet.optional(ByteNet.inst),
-
-					warnings = ByteNet.array(ByteNet.struct({
-						text = ByteNet.string,
-						type = ByteNet.string
-					}))
-				})
 			})
 		},
 	}
