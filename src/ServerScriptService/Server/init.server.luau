@@ -19,6 +19,7 @@ Thank you
 local PhysicsService = game:GetService("PhysicsService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local ServerStorage = game:GetService("ServerStorage")
 local TeleportService = game:GetService("TeleportService")
 local Workspace = game:GetService("Workspace")
@@ -26,8 +27,9 @@ local Workspace = game:GetService("Workspace")
 local COLLISION_MAP = require(script.CollisionGroupMap)
 local KitSettings = require(ReplicatedStorage.KitSettings)
 
-local Utility = ReplicatedStorage:WaitForChild("Utility")
+local Utility = ReplicatedStorage:WaitForChild("Framework"):WaitForChild("Kit"):WaitForChild("Utility")
 local StorageUtils = require(Utility:WaitForChild("Storage"))
+local WebhookUtils = require(Utility:WaitForChild("Webhooks"))
 
 local Framework = ReplicatedStorage.Framework
 local Remotes = Framework.Remotes
@@ -302,18 +304,36 @@ end
 do --> Init Towers
 	local WINPAD_DEBOUNCE = 0.5
 
-	function getTowerName(portal: BasePart): string | nil
-		local NameChecked = "TowerName"
-
-		if portal:GetAttribute(NameChecked) then
-			return portal:GetAttribute(NameChecked) :: string
-		elseif portal:FindFirstChild(NameChecked) then
-			if portal:FindFirstChild(NameChecked):IsA("StringValue") then
-				return (portal:FindFirstChild(NameChecked) :: StringValue).Value
+	function findValue(parent: BasePart, name: string): string | nil
+		if parent:GetAttribute(name) then
+			return parent:GetAttribute(name) :: string
+		elseif parent:FindFirstChild(name) then
+			if parent:FindFirstChild(name):IsA("StringValue") then
+				return (parent:FindFirstChild(name) :: StringValue).Value
 			end
 		end
 
 		return nil
+	end
+
+	function onPlayerWin(player: Player, tower: Folder)
+		local difficulty = findValue(tower, "Difficulty")
+		local name = findValue(tower, "ProperName") or tower.Name
+
+		local message = RunService:IsStudio() and KitSettings.Webhooks.Testing.Message or KitSettings.Webhooks.Message
+		local url = RunService:IsStudio()and KitSettings.Webhooks.Testing.Normal or KitSettings.Webhooks.Normal
+
+		message = string.gsub(message, "{DisplayName}", player.DisplayName)
+		message = string.gsub(message, "{Username}", player.Name)
+		message = string.gsub(message, "{TowerName}", name)
+
+		WebhookUtils:Post({
+			Message = message,
+			URL = url
+		})
+
+		player:SetAttribute("CurrentTower", "")
+		player:LoadCharacter()
 	end
 
 	function initWinpad(winpad: BasePart)
@@ -321,15 +341,18 @@ do --> Init Towers
 			return
 		end
 
+		local towerName = getTowerName(winpad)
+
+		if towerName == nil then
+			return
+		end
+		if not workspace.Towers:FindFirstChild(towerName) then
+			return
+		end
+
 		winpad:SetAttribute("Debounce", false)
 		winpad.Touched:Connect(function(Hit)
 			if winpad:GetAttribute("Debounce") then
-				return
-			end
-
-			local towerName = getTowerName(winpad)
-
-			if towerName == nil then
 				return
 			end
 
@@ -351,9 +374,7 @@ do --> Init Towers
 			end
 
 			winpad:SetAttribute("Debounce", true)
-
-			player:SetAttribute("CurrentTower", "")
-			player:LoadCharacter()
+			onPlayerWin(player, workspace.Towers:FindFirstChild(towerName))
 
 			task.delay(WINPAD_DEBOUNCE, function()
 				winpad:SetAttribute("Debounce", false)
@@ -425,6 +446,9 @@ do --> Init Portals
 		local towerName = getTowerName(portal)
 
 		if towerName == nil then
+			return
+		end
+		if not workspace.Towers:FindFirstChild(towerName) then
 			return
 		end
 
