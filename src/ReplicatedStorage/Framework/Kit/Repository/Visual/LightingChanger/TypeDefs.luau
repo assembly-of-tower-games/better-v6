@@ -17,7 +17,6 @@ Thank you
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local APIDump = require(ReplicatedStorage.Framework.ClientTypes.APIDump)
 
 type DefaultData = "PlaceDefault" | "TowerDefault" | string
 type constructorReturns = {
@@ -34,7 +33,7 @@ export type Constructor = ((
 		UseDefault: DefaultData?,
 		SetDefault: DefaultData?,
 		TweenInfo: TweenInfo?,
-		Configuration: (ColorCorrectionEffect | APIDump.ColorCorrectionEffect)?,
+		Configuration: (ColorCorrectionEffect)?,
 	}
 ) -> constructorReturns) & ((
 	type: "BlurEffect"
@@ -42,7 +41,7 @@ export type Constructor = ((
 	data: {
 		UseDefault: DefaultData?,
 		SetDefault: DefaultData?,
-		Configuration: (BlurEffect | APIDump.BlurEffect)?,
+		Configuration: (BlurEffect)?,
 		TweenInfo: TweenInfo?,
 	}
 ) -> constructorReturns) & ((
@@ -51,7 +50,7 @@ export type Constructor = ((
 	data: {
 		UseDefault: DefaultData?,
 		SetDefault: DefaultData?,
-		Configuration: APIDump.Lighting?,
+		Configuration: Lighting?,
 		TweenInfo: TweenInfo?,
 	}
 ) -> constructorReturns) & ((
@@ -60,7 +59,7 @@ export type Constructor = ((
 	data: {
 		UseDefault: DefaultData?,
 		SetDefault: DefaultData?,
-		Configuration: (BloomEffect | APIDump.BloomEffect)?,
+		Configuration: (BloomEffect)?,
 		TweenInfo: TweenInfo?,
 	}
 ) -> constructorReturns) & ((
@@ -69,7 +68,7 @@ export type Constructor = ((
 	data: {
 		UseDefault: DefaultData?,
 		SetDefault: DefaultData?,
-		Configuration: (DepthOfFieldEffect | APIDump.DepthOfFieldEffect)?,
+		Configuration: (DepthOfFieldEffect)?,
 		TweenInfo: TweenInfo?,
 	}
 ) -> constructorReturns) & ((
@@ -78,7 +77,7 @@ export type Constructor = ((
 	data: {
 		UseDefault: DefaultData?,
 		SetDefault: DefaultData?,
-		Configuration: (Atmosphere | (APIDump.Atmosphere & { Enabled: boolean? }))?,
+		Configuration: (Atmosphere & { Enabled: boolean? })?,
 		TweenInfo: TweenInfo?,
 	}
 ) -> constructorReturns) & ((
@@ -87,7 +86,7 @@ export type Constructor = ((
 	data: {
 		UseDefault: DefaultData?,
 		SetDefault: DefaultData?,
-		Configuration: (Sky | APIDump.Sky)?,
+		Configuration: (Sky)?,
 		TweenInfo: TweenInfo?,
 	}
 ) -> constructorReturns)

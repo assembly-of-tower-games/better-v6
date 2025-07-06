@@ -16,7 +16,6 @@ Thank you
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local APIDump = require(ReplicatedStorage.Framework.ClientTypes.APIDump)
 
 --[=[
 	@interface LightingConfiguration
