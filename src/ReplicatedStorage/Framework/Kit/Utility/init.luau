@@ -32,6 +32,8 @@ Utility.Gui = require(script.Gui)
 Utility.Instance = require(script.Instance)
 Utility.Scope = require(script.ScopeUtil)
 Utility.SongTime = require(script.SongTime)
+Utility.Storage = require(script.Storage)
+Utility.Webhooks = require(script.Webhooks)
 
 export type Utility = typeof(Utility)
 

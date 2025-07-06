@@ -16,8 +16,6 @@ Thank you
 --------------------------------------------------------------------------------
 ]]
 
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 export type Key = {
 	instance: Model?,
 	originalCFrame: CFrame,

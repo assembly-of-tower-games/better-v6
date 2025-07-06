@@ -10,7 +10,7 @@ dependencies = []
 [[package]]
 name = "brokengames/better-v6"
 version = "0.1.0"
-dependencies = [["ByteNet", "elitriare/bytenet-max@0.2.3"], ["Janitor", "howmanysmall/janitor@1.18.3"], ["ProfileStore", "2jammers/profilestore@0.1.0"], ["Signal", "sleitnick/signal@2.0.3"]]
+dependencies = [["ByteNet", "elitriare/bytenet-max@0.2.3"], ["Janitor", "howmanysmall/janitor@1.18.3"], ["ProfileStore", "2jammers/profilestore@0.1.0"], ["Router", "primiti-ve/router@0.1.7"], ["Signal", "sleitnick/signal@2.0.3"], ["Themer", "primiti-ve/themer@0.1.8"]]
 
 [[package]]
 name = "elitriare/bytenet-max"
@@ -31,6 +31,16 @@ dependencies = [["Promise", "howmanysmall/typed-promise@4.0.6"]]
 name = "howmanysmall/typed-promise"
 version = "4.0.6"
 dependencies = [["Promise", "evaera/promise@4.0.0"]]
+
+[[package]]
+name = "primiti-ve/router"
+version = "0.1.7"
+dependencies = []
+
+[[package]]
+name = "primiti-ve/themer"
+version = "0.1.8"
+dependencies = []
 
 [[package]]
 name = "sleitnick/signal"

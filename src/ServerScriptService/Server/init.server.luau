@@ -358,6 +358,7 @@ do --> Init Towers
 
 		local message = RunService:IsStudio() and KitSettings.Webhooks.Testing.Message or KitSettings.Webhooks.Message
 		local url = RunService:IsStudio() and KitSettings.Webhooks.Testing.Normal or KitSettings.Webhooks.Normal
+		local timestamp = WebhookUtils:GetTimestamp("f")
 
 		message = string.gsub(message, "{DisplayName}", player.DisplayName)
 		message = string.gsub(message, "{Username}", player.Name)
@@ -365,10 +366,11 @@ do --> Init Towers
 		message = string.gsub(message, "{Difficulty}", difficulty)
 		message = string.gsub(message, "{DifficultyEmoji}", string.format("<:%s:%s>", difficulty, difficultyEmojiID))
 		message = string.gsub(message, "{Time}", convertedTime)
+		message = string.gsub(message, "{Timestamp}", timestamp)
 
 		WebhookUtils:Post({
 			Message = message,
-			URL = url,
+			URL = url
 		})
 
 		player:SetAttribute("CurrentTower", "")

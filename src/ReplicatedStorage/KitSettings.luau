@@ -9,13 +9,13 @@ return {
 
 	-- Discord Webhooks
 	Webhooks = {
-		Message = "{DisplayName} *(@{Username})* beat **{TowerName}** [{DifficultyEmoji}] in `{Time}`!",
+		Message = "{DisplayName} *(@{Username})* beat **{TowerName}** [{DifficultyEmoji}] in `{Time}` at {Timestamp}!",
 
 		Normal = "https://webhook.lewisakura.moe/api/webhooks/1373715043581034616/XP-Jdk7uIX5S9e0eKoZspF0El4UZS8bo-h1fLJ-gOMsq7VO6YKnQpcAgda3d4xmRqQ-l",
 		SC = "https://webhook.lewisakura.moe/api/webhooks/1373715043581034616/XP-Jdk7uIX5S9e0eKoZspF0El4UZS8bo-h1fLJ-gOMsq7VO6YKnQpcAgda3d4xmRqQ-l",
 
 		Testing = {
-			Message = "[TESTING] {DisplayName} *(@{Username})* beat **{TowerName}** [{DifficultyEmoji}] in `{Time}`!",
+			Message = "[TESTING] {DisplayName} *(@{Username})* beat **{TowerName}** [{DifficultyEmoji}] in `{Time}` at {Timestamp}!",
 
 			Normal = "https://webhook.lewisakura.moe/api/webhooks/1373715043581034616/XP-Jdk7uIX5S9e0eKoZspF0El4UZS8bo-h1fLJ-gOMsq7VO6YKnQpcAgda3d4xmRqQ-l",
 			SC = "https://webhook.lewisakura.moe/api/webhooks/1373715043581034616/XP-Jdk7uIX5S9e0eKoZspF0El4UZS8bo-h1fLJ-gOMsq7VO6YKnQpcAgda3d4xmRqQ-l"

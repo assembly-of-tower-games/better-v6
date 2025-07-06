@@ -6,6 +6,12 @@ type WebhookData = {
 local HttpService = game:GetService("HttpService")
 local WebhooksUtil = {}
 
+function WebhooksUtil:GetTimestamp(Type: string): string
+    Type = Type or "f"
+
+    return string.format("<t:%d:%s>", tick(), Type)
+end
+
 function WebhooksUtil:Post(Data: WebhookData): boolean
     local Message = Data.Message
     local URL = Data.URL
