@@ -1,8 +1,4 @@
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Janitor = require(ReplicatedStorage:WaitForChild("Libs"):WaitForChild("Janitor")) :: any
-
 local Context: ModuleScript
-local ThreadJanitor = nil
 
 type Thread = {
 	init: () -> (),
@@ -14,11 +10,10 @@ local Thread = {} :: Thread
 
 function Thread.init(NewContext: ModuleScript)
 	Context = NewContext
-	ThreadJanitor = Janitor.new()
 end
 
 function Thread.run()
-	if Context and ThreadJanitor then
+	if Context then
 		task.spawn(function()
 			local Success, Error = pcall(function()
 				if Context then
@@ -36,10 +31,7 @@ function Thread.run()
 end
 
 function Thread.cleanup()
-	if ThreadJanitor then
-		ThreadJanitor:Destroy()
-		ThreadJanitor = nil
-	end
+	
 end
 
 return Thread

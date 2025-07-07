@@ -1,5 +1,5 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local ByteNet = require(ReplicatedStorage:WaitForChild("Libs"):WaitForChild("ByteNet"))
+local ByteNet = require(ReplicatedStorage:WaitForChild("Packages"):WaitForChild("ByteNet"))
 
 return ByteNet.defineNamespace("Towers", function()
 	return {

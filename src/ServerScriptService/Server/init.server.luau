@@ -55,30 +55,31 @@ function findValue(parent: BasePart, name: string): string | nil
 	return nil
 end
 
-function step(deltaTime: number)
-	for id, timer in pairs(timers) do
-		timers[id] = timer + deltaTime
-
-		local plr = Players:GetPlayerByUserId(id)
-
-		if plr then 
-			TimerNamespace.packets.CorrectTimer.sendTo(timers[id], plr)
-		end
-	end
-end
-
-function convertTime(seconds)
-	seconds = tonumber(seconds)
-
+function convertTime(seconds: number): string
 	if seconds == nil then
-		return
+		return "XX:XX.XX"
 	end
 
 	local min = math.floor(seconds / 60)
 	local sec = seconds % 60
 	local ms = string.format("%.2f", tostring(seconds % 1)):sub(3, 4)
 
-	return string.format("%02i:%02i:%02i", min, sec, ms)
+	return string.format("%02i:%02i.%02i", min, sec, ms)
+end
+
+function step(deltaTime: number)
+	for id, timer in pairs(timers) do 
+		local plr = Players:GetPlayerByUserId(id)
+
+		if plr then 
+			timers[id] = timer + deltaTime
+
+			print(timers[id])
+			print(typeof(timers[id]))
+
+			TimerNamespace.packets.CorrectTimer.sendTo(timers[id], plr)
+		end
+	end
 end
 
 --------------------------------------------------------------------------------
@@ -442,7 +443,7 @@ do --> Init Towers
 		end
 
 		do --> Init Winpad
-			local winpad = tower:FindFirstChild("WinPad", true) or tower:FindFirstChild("Winpad", true)
+			local winpad = tower:FindFirstChild("WinPad", true)
 
 			if winpad then
 				initWinpad(winpad)

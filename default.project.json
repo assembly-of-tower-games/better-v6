@@ -9,7 +9,7 @@
       "$ignoreUnknownInstances": true,
       "$path": "src/ReplicatedStorage",
 
-      "Libs": {
+      "Packages": {
         "$path": "Packages",
         "$ignoreUnknownInstances": true
       }
@@ -35,12 +35,19 @@
 
     "StarterPlayer": {
       "$className": "StarterPlayer",
+      "$ignoreUnknownInstances": true,
+
       "StarterPlayerScripts": {
         "$className": "StarterPlayerScripts",
         "$ignoreUnknownInstances": true,
         "$path": "src/StarterPlayer/StarterPlayerScripts"
       },
-      "$ignoreUnknownInstances": true
+
+      "StarterCharacterScripts": {
+        "$className": "StarterCharacterScripts",
+        "$ignoreUnknownInstances": true,
+        "$path": "src/StarterPlayer/StarterCharacterScripts"
+      }
     }
   }
 }

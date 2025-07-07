@@ -4,9 +4,9 @@ local Players = game:GetService("Players")
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Signal =
-	require(ReplicatedStorage:WaitForChild("Libs"):WaitForChild("Signal"))
+	require(ReplicatedStorage:WaitForChild("Packages"):WaitForChild("Signal"))
 local ProfileStore =
-	require(ReplicatedStorage:WaitForChild("Libs"):WaitForChild("ProfileStore"))
+	require(ReplicatedStorage:WaitForChild("Packages"):WaitForChild("ProfileStore"))
 
 local StorageUtils = {}
 local TEMPLATE = {}
