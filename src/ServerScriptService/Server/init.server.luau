@@ -74,9 +74,6 @@ function step(deltaTime: number)
 		if plr then 
 			timers[id] = timer + deltaTime
 
-			print(timers[id])
-			print(typeof(timers[id]))
-
 			TimerNamespace.packets.CorrectTimer.sendTo(timers[id], plr)
 		end
 	end

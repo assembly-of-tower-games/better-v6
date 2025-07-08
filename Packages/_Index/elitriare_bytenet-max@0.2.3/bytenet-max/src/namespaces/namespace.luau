@@ -49,7 +49,6 @@ return function(
 			count += 1
 			constructedNamespace.packets[key] = count
 			packetResult[key] = packets[key](count)
-			print(count, packetResult)
 			packetIDs.set(count, packetResult[key])
 		end
 
