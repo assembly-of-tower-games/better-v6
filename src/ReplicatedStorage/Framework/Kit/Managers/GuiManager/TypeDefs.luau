@@ -1,20 +1,3 @@
---!strict
---[[
---------------------------------------------------------------------------------
--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-⚠️  WARNING - PLEASE READ! ⚠️
-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-
-If you are submitting to EToH: 
-PLEASE, **DO NOT** make any script edits to this script. 
-This is a core script and any edits you make to this script will NOT work 
-elsewhere.
-
-If you have any suggestions, please let us know.
-Thank you
---------------------------------------------------------------------------------
-]]
-
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StarterGui = game:GetService("StarterGui")
 local Kit = ReplicatedStorage.Framework.Kit
@@ -22,7 +5,7 @@ local Kit = ReplicatedStorage.Framework.Kit
 local CharacterManager_Types = require(Kit.Managers.CharacterManager.TypeDefs)
 local KeyGroup_Types = require(Kit.Repository.Interactables.KeyGroup.TypeDefs)
 
-export type BoostTimerFrame = typeof(script.Parent.BoostFrame) -- allows autocomplete
+export type BoostTimerFrame = typeof(ReplicatedStorage.Assets.Managers.GuiManager.BoostFrame) -- allows autocomplete
 export type KeyCache = KeyGroup_Types.Cache
 
 export type GuiManager = {

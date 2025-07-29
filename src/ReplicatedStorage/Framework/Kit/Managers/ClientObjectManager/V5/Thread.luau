@@ -17,7 +17,7 @@ function Thread.run()
 		task.spawn(function()
 			local Success, Error = pcall(function()
 				if Context then
-					(require(Context) :: any)()
+					(require(Context) :: () -> ())()
 				else
 					error("No Context found")
 				end

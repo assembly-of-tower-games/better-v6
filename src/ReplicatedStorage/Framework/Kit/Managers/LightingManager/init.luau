@@ -1,4 +1,3 @@
---!strict
 --!optimize 2
 -- By @synnwave (09/12/24 DD/MM/YY)
 

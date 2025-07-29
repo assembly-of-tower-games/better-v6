@@ -381,7 +381,7 @@ function CharacterManager:Init()
 		end)
 
 		-- Enable Physics Fix (Truss Fix + Head Collision Glitch Fix)
-		local fixScript = script.PhysicsFixer:Clone()
+		local fixScript = ReplicatedStorage.Assets.Managers.CharacterManager.PhysicsFixer:Clone()
 		fixScript.Parent = character
 		fixScript.Enabled = true
 
@@ -389,7 +389,7 @@ function CharacterManager:Init()
 		if not humanoid.RootPart then
 			return
 		end
-		local hitbox = script._HITBOX:Clone()
+		local hitbox = ReplicatedStorage.Assets.Managers.CharacterManager._HITBOX:Clone()
 		hitbox:PivotTo(humanoid.RootPart:GetPivot())
 		hitbox.RootPart.WeldConstraint.Part1 = humanoid.RootPart
 		hitbox.RootPart.Anchored = false

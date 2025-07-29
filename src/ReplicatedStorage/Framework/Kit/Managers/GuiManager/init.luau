@@ -1,22 +1,4 @@
---!strict
 --!optimize 2
--- By @synnwave, Camille (09/12/24 DD/MM/YY)
-
---[[
---------------------------------------------------------------------------------
--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-⚠️  WARNING - PLEASE READ! ⚠️
-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-
-If you are submitting to EToH: 
-PLEASE, **DO NOT** make any script edits to this script. 
-This is a core script and any edits you make to this script will NOT work 
-elsewhere.
-
-If you have any suggestions, please let us know.
-Thank you
---------------------------------------------------------------------------------
-]]
 
 --[=[
     @class GuiManager
@@ -34,8 +16,8 @@ Services, modules and other objects
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-local TextChatService = game:GetService("TextChatService")
 local TweenService = game:GetService("TweenService")
+local Debris = game:GetService("Debris")
 
 local Framework = ReplicatedStorage.Framework
 local _TDefs = require(script.TypeDefs)
@@ -43,7 +25,6 @@ local _TDefs = require(script.TypeDefs)
 local Kit = Framework.Kit
 local Log = require(Framework.Log)
 local CharacterManager_Types = require(Kit.Managers.CharacterManager.TypeDefs)
-local KitSettings = require(ReplicatedStorage.KitSettings)
 
 --[[
 ---------------------------------------------------------------------------
@@ -77,11 +58,297 @@ local BOOST_TIMER_DATA = {
 	},
 }
 
-local BOOST_FRAME_INACTIVE_SIZE = UDim2.fromScale(0, script.BoostFrame.Size.Y.Scale)
+local BOOST_FRAME_INACTIVE_SIZE =
+	UDim2.fromScale(0, ReplicatedStorage.Assets.Managers.GuiManager.BoostFrame.Size.Y.Scale)
 local BOOST_FRAME_TWEEN_INFO = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
 
 local KEY_CAMERA = Instance.new("Camera")
 KEY_CAMERA.CFrame = CFrame.new(Vector3.zAxis * 4)
+
+local PickupSound = 'rbxassetid://424002310'
+local UnlockSound = 'rbxassetid://4381793351'
+
+local OwnedKeys = {}
+
+local KeyTrails = {}
+local KeyIncrement = 20
+
+local KeyTrailPosition
+local KeyTrailLogLimit = 100
+local KeyTrailThreshold = 2 / KeyIncrement
+
+function PlaySound(Part, id)
+	if Part:FindFirstChild("ReplaceSound") then
+		Part.ReplaceSound:Play()
+	else
+		local Sound = Instance.new('Sound')
+
+		Sound.SoundId = id
+		Sound.Volume = 4
+		Sound.Parent = Part
+		Sound:Play()
+
+		Debris:AddItem(Sound, 5)
+	end
+end
+
+function GetTrailPosition(Position)
+	local Player = Players.LocalPlayer or Players.PlayerAdded:Wait()
+	local Character = Player.Character or Player.CharacterAdded:Wait()
+
+	return KeyTrails[math.floor((Position * KeyIncrement) / 3)]
+		or KeyTrails[#KeyTrails]
+		or (Character and Character:FindFirstChild("HumanoidRootPart") and Character.HumanoidRootPart.Position)
+		or Vector3.new()
+end
+
+function FindKey(ID)
+	local Number
+	local KeyInfo
+
+	for Index, Key in pairs(OwnedKeys) do
+		if Key.ID == ID then
+			KeyInfo = Key
+			Number = Index
+
+			break
+		end
+	end
+
+	return KeyInfo, Number
+end
+
+function IsKeyInList(Key)
+	for Index, KeyInfo in pairs(OwnedKeys) do
+		if KeyInfo.Key == Key then
+			return KeyInfo, Index
+		end
+	end
+
+	return nil, nil
+end
+
+function AddKey(ID, Key, Clone)
+	local KeysID = #OwnedKeys + 1
+
+	OwnedKeys[KeysID] = { ID = ID, Key = Key }
+
+	return OwnedKeys[KeysID]
+end
+
+function RemoveKey(ID, KeyReturn)
+	local KeyInfo, Number
+
+	if type(ID) == "userdata" then
+		KeyInfo, Number = IsKeyInList(ID)
+	else
+		KeyInfo, Number = FindKey(ID)
+	end
+
+	if KeyInfo then
+		if not KeyReturn then
+			Debris:AddItem(KeyInfo.Key, 0.2)
+			
+			KeyInfo.Key.KeyID:Destroy()
+		else
+			local Cooldown = Instance.new("BoolValue")
+
+			Cooldown.Name = "Cooldown"
+			Cooldown.Parent = KeyInfo.Key
+
+			Debris:AddItem(Cooldown, 2)
+		end
+
+		table.remove(OwnedKeys, Number)
+		return KeyInfo.Key
+	end
+
+	return false
+end
+
+function KeyStep(DeltaTime)
+	local Trail = KeyTrails
+
+	local Player = Players.LocalPlayer or Players.PlayerAdded:Wait()
+	local Character = Player.Character or Player.CharacterAdded:Wait()
+
+	if Character and Character:FindFirstChild("HumanoidRootPart") then
+		local HumanoidRootPart = Character.HumanoidRootPart
+
+		if not KeyTrailPosition or (HumanoidRootPart.Position - KeyTrailPosition).Magnitude > KeyTrailThreshold then
+			Trail = {}
+
+			table.insert(Trail, 1, KeyTrailPosition)
+
+			for Number, TrailPos in pairs(KeyTrails) do
+				if Number <= KeyTrailLogLimit * KeyIncrement then
+					table.insert(Trail, Number + 1, TrailPos)
+				end
+			end
+
+			KeyTrailPosition = HumanoidRootPart.Position
+		end
+	end
+
+	KeyTrails = Trail
+end
+
+function CheckDescendant(Descendant)
+	local Parent = Descendant.Parent
+
+	if Descendant.Name == "KeyID" and Parent then
+		local KeyHitbox = Parent:FindFirstChild("KeyHitbox")
+
+		if KeyHitbox then
+			KeyHitbox.Transparency = 1
+
+			local Debounce = true
+
+			if Descendant:FindFirstChild("Door") then
+				KeyHitbox.Touched:Connect(function(Hit)
+					if Debounce and Players:GetPlayerFromCharacter(Hit.Parent) == Players.LocalPlayer then
+						local Key = RemoveKey(Descendant.Value)
+
+						if not Key then
+							return
+						end
+
+						if Key then
+							local Value = Instance.new("Vector3Value")
+
+							Value.Name = "MoveToPosition"
+							Value.Value = KeyHitbox.Position
+
+							Value.Parent = Key
+						end
+
+						Debounce = false
+						PlaySound(KeyHitbox, UnlockSound)
+
+						for _, Descendant in pairs(Parent:GetDescendants()) do
+							if Descendant:IsA("BasePart") then
+								if Descendant.Name == "Fall" then
+									Descendant.Anchored = false
+									Descendant.CanCollide = false
+
+									Descendant.RotVelocity =
+										Vector3.new(math.random(-10, 10), math.random(-10, 10), math.random(-10, 10))
+									Descendant.Velocity =
+										Vector3.new(math.random(-30, 30), math.random(-30, 30), math.random(-30, 30))
+
+									Descendant:BreakJoints()
+								elseif Descendant.Name == "Vanish" then
+									TweenService:Create(
+										Descendant,
+										TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
+										{ Transparency = 1 }
+									):Play()
+									Descendant.CanCollide = false
+
+									Debris:AddItem(Descendant, 0.5)
+								end
+							end
+						end
+					end
+				end)
+			else
+				local Key = Parent
+				local KeyClone = Parent:Clone()
+
+				local Parts = {}
+				local DefinitivePosition = KeyHitbox.Position
+
+				Key:PivotTo(CFrame.new(DefinitivePosition))
+
+				for _, KeyPart in pairs(Key:GetDescendants()) do
+					if KeyPart:IsA("BasePart") and KeyPart ~= KeyHitbox then
+						Parts[KeyPart] = KeyPart.CFrame * KeyHitbox.CFrame:Inverse()
+						KeyPart.CanCollide = false
+					end
+				end
+
+				local CurrentRotation = 0
+				local RotationSpeed = 180
+				local MoveSpeed = 10
+
+				local KeyConnection
+
+				KeyConnection = RunService.RenderStepped:Connect(function(DeltaTime)
+					local MoveTo = DefinitivePosition
+					local _KeyInfo, KeyNumber = IsKeyInList(Key)
+
+					if not KeyNumber then
+						Debounce = true
+					end
+
+					if not Descendant or not Key or not KeyHitbox or not KeyHitbox.Parent then
+						KeyConnection:Disconnect()
+
+						return
+					end
+
+					if Key:FindFirstChild("MoveToPosition") then
+						MoveTo = Key.MoveToPosition.Value
+					else
+						if KeyNumber then
+							MoveTo = GetTrailPosition(KeyNumber)
+						end
+					end
+
+					CurrentRotation += math.min(RotationSpeed * DeltaTime, 1)
+
+					if CurrentRotation > 360 then
+						CurrentRotation = 0
+					end
+
+					if (MoveTo - workspace.CurrentCamera.CFrame.Position).Magnitude < 100 or KeyNumber then
+						Key:PivotTo(
+							CFrame.new(KeyHitbox.Position:Lerp(MoveTo, math.min(MoveSpeed * DeltaTime, 1)))
+								* CFrame.Angles(0, math.rad(CurrentRotation), 0)
+						)
+					end
+
+					for Part, PartOffset in pairs(Parts) do
+						Part.CFrame = KeyHitbox.CFrame * PartOffset
+					end
+				end)
+
+				KeyHitbox.Touched:Connect(function(Hit)
+					if
+						Descendant
+						and Descendant.Parent
+						and Debounce
+						and Players:GetPlayerFromCharacter(Hit.Parent) == Players.LocalPlayer
+						and not IsKeyInList(Key)
+						and not Key:FindFirstChild("Cooldown")
+					then
+						Debounce = false
+
+						local HitboxClone = KeyHitbox:Clone()
+						HitboxClone.Parent = KeyClone
+
+						local Effect = ReplicatedStorage.Assets.Effects.Key:Clone()
+						Effect.Parent = KeyHitbox
+						Effect:Emit(math.random(20, 50))
+
+						PlaySound(KeyHitbox, PickupSound)
+						AddKey(Descendant.Value, Key, KeyClone)
+					end
+				end)
+			end
+		end
+	end
+
+	if Descendant:FindFirstChild("ReturnKey") and Descendant.ReturnKey:IsA("StringValue") then 
+		Descendant.Touched:Connect(function(Hit)
+			if not Hit.Parent or Players:GetPlayerFromCharacter(Hit.Parent) ~= Players.LocalPlayer then 
+				return
+			end
+
+			RemoveKey(Descendant.ReturnKey.Value, true)
+		end)
+	end
+end
 
 --[[
 ---------------------------------------------------------------------------
@@ -109,7 +376,7 @@ function GuiManager:CreateBoostFrame(boostData: CharacterManager_Types.BoostData
 
 	local boostTimerData = BOOST_TIMER_DATA[boostData.type]
 
-	local frame = script.BoostFrame:Clone()
+	local frame = ReplicatedStorage.Assets.Managers.GuiManager.BoostFrame:Clone()
 	frame.Size = BOOST_FRAME_INACTIVE_SIZE
 	frame.Name = boostData.type
 
@@ -129,7 +396,9 @@ function GuiManager:CreateBoostFrame(boostData: CharacterManager_Types.BoostData
 	frame.Parent = GuiManager.Gui.Boosts
 
 	boostData.frame = frame
-	TweenService:Create(frame, BOOST_FRAME_TWEEN_INFO, { Size = script.BoostFrame.Size }):Play()
+	TweenService
+		:Create(frame, BOOST_FRAME_TWEEN_INFO, { Size = ReplicatedStorage.Assets.Managers.GuiManager.BoostFrame.Size })
+		:Play()
 
 	GuiManager:UpdateBoostFrame(boostData)
 	return frame
@@ -221,16 +490,20 @@ function GuiManager:__updateKeyDisplay()
 				debug.profileend()
 				continue
 			end
+
 			local keyData = key.__private
+
 			if not key.instance or not keyData.viewport then
 				debug.profileend()
 				continue
 			end
 
 			local viewport = keyData.viewport
+
 			if viewport.Parent ~= keyFrame then
 				viewport.Parent = keyFrame
 			end
+
 			if not viewport.CurrentCamera then
 				viewport.CurrentCamera = KEY_CAMERA
 			end
@@ -240,8 +513,10 @@ function GuiManager:__updateKeyDisplay()
 				if viewport.LayoutOrder ~= keyIndex then
 					viewport.LayoutOrder = keyIndex
 				end
+
 				if key.instance.Parent ~= viewport then
 					key.instance.Parent = viewport
+
 					if not keyData.isViewportDisplayed then
 						keyData.isViewportDisplayed = true
 						key.instance:PivotTo(key.config.ViewportOffset or CFrame.identity)
@@ -249,6 +524,7 @@ function GuiManager:__updateKeyDisplay()
 				end
 
 				local timerLabel = key.timerLabel
+
 				if keyData.startTimer and timerLabel then
 					viewport.Time.Text = timerLabel.Text
 				end
@@ -262,6 +538,7 @@ function GuiManager:__updateKeyDisplay()
 				end
 
 				local currentParent = key.instance.Parent
+
 				if currentParent and currentParent ~= keyData.parent then
 					key.instance.Parent = keyData.parent
 				end
@@ -286,7 +563,8 @@ end
 ]=]
 function GuiManager:DisplayGUI(guiName: string, ...: any)
 	local gui = script:FindFirstChild(guiName)
-	if not gui then -- already being displayed?
+
+	if not gui then
 		Log({
 			`{guiName} GUI not found or already visible!!`,
 			type = "warn",
@@ -295,14 +573,9 @@ function GuiManager:DisplayGUI(guiName: string, ...: any)
 		return true
 	end
 
-	if guiName == "debug" then
-		local displayMemory = ...
-		gui.memory.Visible = displayMemory
-		gui.memory.LocalScript.Enabled = displayMemory
-	end
-
 	gui.Enabled = true
 	gui.Parent = GuiManager.PlayerGui
+
 	return true
 end
 
@@ -317,25 +590,17 @@ function GuiManager:Init()
 	GuiManager.Gui = playerGui:WaitForChild("EffectGUI")
 	GuiManager.PlayerGui = playerGui
 
-	--> Debug & Settings Gui Init
-	if KitSettings.DisplayDebugGuis then
-		GuiManager:DisplayGUI("debug", KitSettings.DisplayMemoryDebug)
-	end
-	if KitSettings.DisplaySettingsGui then
-		GuiManager:DisplayGUI("settings")
-	end
-	TextChatService.SendingMessage:Connect(function(message)
-		if message.Text:lower() == ".debug" then
-			GuiManager:DisplayGUI("debug", true)
-		elseif message.Text:lower() == ".kitsettings" then
-			GuiManager:DisplayGUI("settings")
-		end
-	end)
-
 	--> Start Key display loop
 	RunService.Heartbeat:Connect(function()
 		self:__updateKeyDisplay()
 	end)
+
+	for _, Descendant in pairs(workspace:WaitForChild("ClientParts"):GetDescendants()) do
+		CheckDescendant(Descendant)
+	end
+
+	workspace:WaitForChild("ClientParts").DescendantAdded:Connect(CheckDescendant)
+	RunService.RenderStepped:Connect(KeyStep)
 
 	return GuiManager
 end

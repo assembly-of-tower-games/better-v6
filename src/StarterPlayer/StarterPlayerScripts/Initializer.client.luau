@@ -51,8 +51,10 @@ local _GuiManager = require(Kit.Managers.GuiManager):Init()
 local ClientParts = Workspace:FindFirstChild("ClientParts")
 	or (function()
 		local newFolder = Instance.new("Folder")
+		
 		newFolder.Name = "ClientParts"
 		newFolder.Parent = Workspace
+
 		return newFolder
 	end)()
 

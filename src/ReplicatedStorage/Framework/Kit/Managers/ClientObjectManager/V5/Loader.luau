@@ -10,7 +10,6 @@ type Thread = {
 	cleanup: () -> (),
 }
 
-
 Loader.Threads = {} :: {Thread}
 
 local ThreadTemplate = script.Parent.Thread

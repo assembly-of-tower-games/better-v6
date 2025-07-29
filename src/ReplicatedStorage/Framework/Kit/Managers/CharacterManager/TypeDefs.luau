@@ -1,22 +1,4 @@
---!strict
---[[
---------------------------------------------------------------------------------
--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-⚠️  WARNING - PLEASE READ! ⚠️
-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-
-If you are submitting to EToH: 
-PLEASE, **DO NOT** make any script edits to this script. 
-This is a core script and any edits you make to this script will NOT work 
-elsewhere.
-
-If you have any suggestions, please let us know.
-Thank you
---------------------------------------------------------------------------------
-]]
-
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local GuiManager = ReplicatedStorage.Framework.Kit.Managers.GuiManager
 
 export type __VALID_DAMAGEBRICKS = {
@@ -24,7 +6,7 @@ export type __VALID_DAMAGEBRICKS = {
 	double: number,
 	ouch: number,
 	instakills: number,
-    custom: number,
+	custom: number,
 	heals: string,
 	[string]: any,
 }
@@ -51,7 +33,7 @@ export type BoostData = {
 	isPad: boolean,
 	type: string,
 	power: number,
-	frame: typeof(GuiManager.BoostFrame)?, -- created later
+	frame: typeof(ReplicatedStorage.Assets.Managers.GuiManager.BoostFrame)?, -- created later
 
 	-- values calculated on the fly, stored here to be used in
 	-- other scripts using this type
