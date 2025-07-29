@@ -3,7 +3,7 @@ local StarterGui = game:GetService("StarterGui")
 local Kit = ReplicatedStorage.Framework.Kit
 
 local CharacterManager_Types = require(Kit.Managers.CharacterManager.TypeDefs)
-local KeyGroup_Types = require(Kit.Repository.Interactables.KeyGroup.TypeDefs)
+local KeyGroup_Types = require(ReplicatedStorage.Assets.Repository.Interactables.KeyGroup.TypeDefs)
 
 export type BoostTimerFrame = typeof(ReplicatedStorage.Assets.Managers.GuiManager.BoostFrame) -- allows autocomplete
 export type KeyCache = KeyGroup_Types.Cache

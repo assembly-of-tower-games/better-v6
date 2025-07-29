@@ -21,10 +21,10 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local ServerStorage = game:GetService("ServerStorage")
-local TeleportService = game:GetService("TeleportService")
 
 local COLLISION_MAP = require(script.CollisionGroupMap)
 local KitSettings = require(ReplicatedStorage.KitSettings)
+local InternalConfig = require(script.KitConfig)
 
 local Utility = ReplicatedStorage:WaitForChild("Framework"):WaitForChild("Kit"):WaitForChild("Utility")
 local WebhookUtils = require(Utility:WaitForChild("Webhooks"))
@@ -33,8 +33,8 @@ local Framework = ReplicatedStorage.Framework
 local Namespaces = Framework.Namespaces
 
 local TowersNamespace = require(Namespaces.Towers)
-local RejoinNamespace = require(Namespaces.Rejoin)
 local TimerNamespace = require(Namespaces.Timer)
+local AnnouncementNamespace = require(Namespaces.Announcement)
 
 local VERSION_NUMBER = "6.0.0"
 local timers = {}
@@ -66,10 +66,10 @@ function convertTime(seconds: number): string
 end
 
 function step(deltaTime: number)
-	for id, timer in pairs(timers) do 
+	for id, timer in pairs(timers) do
 		local plr = Players:GetPlayerByUserId(id)
 
-		if plr then 
+		if plr then
 			timers[id] = timer + deltaTime
 
 			TimerNamespace.packets.CorrectTimer.sendTo(timers[id], plr)
@@ -141,14 +141,6 @@ end
 
 --------------------------------------------------------------------------------
 
-do --> Rejoin Event
-	RejoinNamespace.packets.Rejoin.listen(function(data, player: Player?)
-		TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, player)
-	end)
-end
-
---------------------------------------------------------------------------------
-
 do --> Create Player Configuration Folder
 	local function onPlayerAdded(player: Player)
 		local configurationFolder = Instance.new("Configuration")
@@ -190,7 +182,8 @@ do --> Handle Tower Client Objects
 		pointerContainer.Name = "__POINTER_STORAGE"
 		pointerContainer.Parent = ReplicatedStorage
 
-		local pointerLinkContainer = ReplicatedStorage:FindFirstChild("__POINTER_LINK_STORAGE") or Instance.new("Folder")
+		local pointerLinkContainer = ReplicatedStorage:FindFirstChild("__POINTER_LINK_STORAGE")
+			or Instance.new("Folder")
 		pointerLinkContainer.Name = "__POINTER_LINK_STORAGE"
 		pointerLinkContainer.Parent = ReplicatedStorage
 
@@ -322,7 +315,7 @@ do --> Init Player Attributes
 		end)
 	end
 	function PlayerRemoving(player: Player)
-		if timers[player.UserId] then 
+		if timers[player.UserId] then
 			timers[player.UserId] = nil
 		end
 	end
@@ -340,14 +333,23 @@ end
 do --> Init Towers
 	local WINPAD_DEBOUNCE = 0.5
 
+	function parseColour(colour: Color3)
+		local R = (colour.R * 255)
+		local G = (colour.G * 255)
+		local B = (colour.B * 255)
+
+		return string.format("rgb(%d, %d, %d)", R, G, B)
+	end
+
 	function onPlayerWin(player: Player, plrTime: number, tower: Folder)
 		local difficulty = findValue(tower, "Difficulty") or "Easy"
-		local difficultyEmojiID = KitSettings.Webhooks.Difficulties[difficulty]
+		local difficultyEmojiID = InternalConfig.Webhooks.Difficulties[difficulty]
 		local name = findValue(tower, "ProperName") or tower.Name
 		local convertedTime = convertTime(plrTime)
 
-		local message = RunService:IsStudio() and KitSettings.Webhooks.Testing.Message or KitSettings.Webhooks.Message
-		local url = RunService:IsStudio() and KitSettings.Webhooks.Testing.Normal or KitSettings.Webhooks.Normal
+		local message = RunService:IsStudio() and InternalConfig.Webhooks.Testing.Message
+			or InternalConfig.Webhooks.Message
+		local url = RunService:IsStudio() and InternalConfig.Webhooks.Testing.Normal or InternalConfig.Webhooks.Normal
 		local timestamp = WebhookUtils:GetTimestamp("f")
 
 		message = string.gsub(message, "{DisplayName}", player.DisplayName)
@@ -360,7 +362,22 @@ do --> Init Towers
 
 		WebhookUtils:Post({
 			Message = message,
-			URL = url
+			URL = url,
+		})
+
+		local winMessage = InternalConfig.WinMessage
+		local difficultyColour = parseColour(InternalConfig.Webhooks.DifficultyColours[difficulty])
+
+		winMessage = string.gsub(winMessage, "{DisplayName}", player.DisplayName)
+		winMessage = string.gsub(winMessage, "{Username}", player.Name)
+		winMessage = string.gsub(winMessage, "{TowerName}", name)
+		winMessage = string.gsub(winMessage, "{Difficulty}", difficulty)
+		winMessage = string.gsub(winMessage, "{Time}", convertedTime)
+		winMessage = string.format(`<font color="%s">%s</font>`, difficultyColour, winMessage)
+
+		AnnouncementNamespace.packets.WinAnnouncement.sendToAll({
+			Text = winMessage,
+			Colour = Color3.fromRGB(255, 255, 255),
 		})
 
 		player:SetAttribute("CurrentTower", "")

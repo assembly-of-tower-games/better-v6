@@ -55,7 +55,7 @@ local function traverseFolders(folder: Instance, repository: Repo, startingPath:
 		if instance:IsA("ModuleScript") then
 			local path = instance:GetFullName():gsub(rootPath, ""):gsub("%.", "/"):sub(2)
 			-- the above turns
-			-- "ReplicatedStorage.Framework.Kit.Repository.Visual.Emitter"
+			-- "ReplicatedStorage.Assets.Repository.Visual.Emitter"
 			-- to: "Visual/Emitter"
 			if repository[path] then -- already in repository, skip loading
 				continue
@@ -103,7 +103,7 @@ local function getRepository(overrideRepository: Instance?)
 	if overrideRepository then
 		traverseFolders(overrideRepository, repository)
 	end
-	traverseFolders(Kit.Repository, repository)
+	traverseFolders(ReplicatedStorage.Assets.Repository, repository)
 	return repository
 end
 

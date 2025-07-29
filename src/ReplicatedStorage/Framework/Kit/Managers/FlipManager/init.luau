@@ -47,7 +47,7 @@ Constants
 ---------------------------------------------------------------------------
 ]]
 
-local DEFAULT_FLIP_SOUND = script:WaitForChild("DoNotChange")
+local DEFAULT_FLIP_SOUND = ReplicatedStorage.Assets.Managers.FlipManager:WaitForChild("DoNotChange")
 
 local PARAMS = OverlapParams.new()
 PARAMS.CollisionGroup = "" -- disable the collisiongroup check

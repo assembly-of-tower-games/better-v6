@@ -24,10 +24,14 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StarterGui = game:GetService("StarterGui")
 local Workspace = game:GetService("Workspace")
 
+local TextChatService = game:GetService("TextChatService")
+local GeneralChannel = TextChatService:WaitForChild("TextChannels"):WaitForChild("RBXGeneral") :: TextChannel
+
 local Framework = ReplicatedStorage.Framework
 local Namespaces = Framework.Namespaces
 
 local TowersNamespace = require(Namespaces.Towers)
+local AnnouncementNamespace = require(Namespaces.Announcement)
 
 local Kit = ReplicatedStorage.Framework.Kit
 local KitSettings = require(ReplicatedStorage.KitSettings)
@@ -135,4 +139,10 @@ Players.LocalPlayer.CharacterAdded:Connect(function()
 			task.defer(requestObjects)
 		end
 	end
+end)
+
+--> Handle Announcements
+AnnouncementNamespace.packets.WinAnnouncement.listen(function(Data: {Text: string, Colour: Color3})
+	print(Data.Text)
+	GeneralChannel:DisplaySystemMessage(Data.Text)
 end)
