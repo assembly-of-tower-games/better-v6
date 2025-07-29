@@ -22,13 +22,11 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local ServerStorage = game:GetService("ServerStorage")
 local TeleportService = game:GetService("TeleportService")
-local Workspace = game:GetService("Workspace")
 
 local COLLISION_MAP = require(script.CollisionGroupMap)
 local KitSettings = require(ReplicatedStorage.KitSettings)
 
 local Utility = ReplicatedStorage:WaitForChild("Framework"):WaitForChild("Kit"):WaitForChild("Utility")
-local StorageUtils = require(Utility:WaitForChild("Storage"))
 local WebhookUtils = require(Utility:WaitForChild("Webhooks"))
 
 local Framework = ReplicatedStorage.Framework
@@ -287,12 +285,6 @@ do --> Handle Tower Client Objects
 			clones[player] = nil
 		end
 	end)
-end
-
---------------------------------------------------------------------------------
-
-do --> Init ProfileStore
-	StorageUtils.init()
 end
 
 --------------------------------------------------------------------------------

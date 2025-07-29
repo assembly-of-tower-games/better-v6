@@ -18,8 +18,6 @@ Thank you
 
 local Utility = {}
 
-local Methods = {}
-
 Utility.Config = require(script.Config)
 Utility.ClientObjects = require(script.ClientObjects)
 Utility.Character = require(script.Character)
@@ -32,7 +30,6 @@ Utility.Gui = require(script.Gui)
 Utility.Instance = require(script.Instance)
 Utility.Scope = require(script.ScopeUtil)
 Utility.SongTime = require(script.SongTime)
-Utility.Storage = require(script.Storage)
 Utility.Webhooks = require(script.Webhooks)
 
 export type Utility = typeof(Utility)
