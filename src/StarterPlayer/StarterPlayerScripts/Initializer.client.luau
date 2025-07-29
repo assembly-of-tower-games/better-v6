@@ -143,6 +143,5 @@ end)
 
 --> Handle Announcements
 AnnouncementNamespace.packets.WinAnnouncement.listen(function(Data: {Text: string, Colour: Color3})
-	print(Data.Text)
 	GeneralChannel:DisplaySystemMessage(Data.Text)
 end)
