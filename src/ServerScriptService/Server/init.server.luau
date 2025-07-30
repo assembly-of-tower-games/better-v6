@@ -29,12 +29,11 @@ local InternalConfig = require(script.KitConfig)
 local Utility = ReplicatedStorage:WaitForChild("Framework"):WaitForChild("Kit"):WaitForChild("Utility")
 local WebhookUtils = require(Utility:WaitForChild("Webhooks"))
 
-local Framework = ReplicatedStorage.Framework
-local Namespaces = Framework.Namespaces
+local Namespaces = ReplicatedStorage.Namespaces
 
 local TowersNamespace = require(Namespaces.Towers)
 local TimerNamespace = require(Namespaces.Timer)
-local AnnouncementNamespace = require(Namespaces.Announcement)
+local AnnouncementsNamespace = require(Namespaces.Announcements)
 
 local VERSION_NUMBER = "6.0.0"
 local timers = {}
@@ -137,21 +136,6 @@ do --> Damage Event
 	TowersNamespace.packets.DamageEventS.listen(function(data: string, player: Player?)
 		handleDamage(player :: Player, data)
 	end)
-end
-
---------------------------------------------------------------------------------
-
-do --> Create Player Configuration Folder
-	local function onPlayerAdded(player: Player)
-		local configurationFolder = Instance.new("Configuration")
-		configurationFolder.Name = "KitConfiguration"
-		configurationFolder.Parent = player
-	end
-
-	for _, player in Players:GetPlayers() do
-		onPlayerAdded(player)
-	end
-	Players.PlayerAdded:Connect(onPlayerAdded)
 end
 
 --------------------------------------------------------------------------------
@@ -301,6 +285,14 @@ do --> Init Player Attributes
 		end
 		player.CharacterAdded:Connect(CharacterAdded)
 
+		player:SetAttribute("ForceRestarting", false)
+
+		player:GetAttributeChangedSignal("ForceRestarting"):Connect(function()
+			if player:GetAttribute("ForceRestarting") then
+				timers[player.UserId] = 0
+			end
+		end)
+
 		player:SetAttribute("CurrentTower", "")
 		player:SetAttribute("LoadingTower", false)
 
@@ -309,6 +301,10 @@ do --> Init Player Attributes
 				not player:GetAttribute("LoadingTower")
 				and ServerStorage.ClientObjects:FindFirstChild(player:GetAttribute("CurrentTower"))
 			then
+				if player:GetAttribute("TowersLocked") then
+					return
+				end
+
 				player:SetAttribute("LoadingTower", true)
 				player:LoadCharacter()
 			end
@@ -375,7 +371,7 @@ do --> Init Towers
 		winMessage = string.gsub(winMessage, "{Time}", convertedTime)
 		winMessage = string.format(`<font color="%s">%s</font>`, difficultyColour, winMessage)
 
-		AnnouncementNamespace.packets.WinAnnouncement.sendToAll({
+		AnnouncementsNamespace.packets.WinAnnouncement.sendToAll({
 			Text = winMessage,
 			Colour = Color3.fromRGB(255, 255, 255),
 		})
@@ -417,7 +413,12 @@ do --> Init Towers
 			if not character or not player then
 				return
 			end
+
 			if player:GetAttribute("CurrentTower") ~= towerName then
+				return
+			end
+
+			if player:GetAttribute("TowersLocked") then
 				return
 			end
 
@@ -508,7 +509,12 @@ do --> Init Portals
 			if not character or not player then
 				return
 			end
+
 			if player:GetAttribute("CurrentTower") == towerName then
+				return
+			end
+
+			if player:GetAttribute("TowersLocked") then
 				return
 			end
 
@@ -535,5 +541,123 @@ end
 do --> Step Function
 	RunService.Stepped:Connect(function(time, deltaTime)
 		step(deltaTime)
+	end)
+end
+
+--------------------------------------------------------------------------------
+
+do --> Init MTKCommands
+	task.spawn(require(script.Cmdr))
+end
+
+--------------------------------------------------------------------------------
+
+do --> Init Command Runner
+	local CommandsNamespace = require(ReplicatedStorage:WaitForChild("Namespaces"):WaitForChild("Commands"))
+	local Utils = require(ReplicatedStorage:WaitForChild("MTKCommands"):WaitForChild("Utils"))
+
+	CommandsNamespace.packets.LoadTower.listen(
+		function(Data: { Player: string, TowerName: string, ResetTimer: boolean }, Executor: Player?)
+			if Executor and Utils.CheckPermissions(Executor) then
+				local Player = Players:FindFirstChild(Data.Player) :: Player
+
+				if Player then
+					Player:SetAttribute("CurrentTower", Data.TowerName)
+
+					if (not timers[Player.UserId]) or Data.ResetTimer then
+						timers[Player.UserId] = 0
+					end
+				end
+			end
+		end
+	)
+
+	CommandsNamespace.packets.UnloadTower.listen(function(Data: string, Executor: Player?)
+		if Executor and Utils.CheckPermissions(Executor) then
+			local Player = Players:FindFirstChild(Data) :: Player
+
+			if Player then
+				if Player:GetAttribute("TowersLocked") then
+					return
+				end
+				
+				timers[Player.UserId] = nil
+
+				Player:SetAttribute("CurrentTower", "")
+				Player:LoadCharacter()
+			end
+		end
+	end)
+
+	CommandsNamespace.packets.ForceWinpad.listen(function(Data: string, Executor: Player?)
+		if Executor and Utils.CheckPermissions(Executor) then
+			local Player = Players:FindFirstChild(Data) :: Player
+			
+			if Player then
+				local TowerName = Player:GetAttribute("CurrentTower")
+				local TowerFolder = workspace.Towers[TowerName] :: Folder
+
+				if TowerFolder then
+					local Winpad = TowerFolder.Obby:FindFirstChild("WinPad") or TowerFolder.Obby:FindFirstChild("Winpad")
+
+					if not Winpad then
+						Winpad = TowerFolder:FindFirstChild("WinPad") or TowerFolder:FindFirstChild("Winpad")
+					end
+
+					if Winpad then
+						local EndingID: string = findValue(Winpad, "EndingID") or ""
+
+						if EndingID == "" then
+							Winpad:SetAttribute("EndingID", TowerName)
+
+							EndingID = TowerName
+						end
+
+						Player:SetAttribute("DisableAC", true)
+						Player.Character:PivotTo(Winpad.CFrame * CFrame.new(0, Player.Character:GetExtentsSize(), 0))
+
+						Player.CharacterAdded:Once(function()
+							Player:SetAttribute("DisableAC", false)
+						end)
+					end
+				end
+			end
+		end
+	end)
+
+	CommandsNamespace.packets.ForceSpawnPoint.listen(function(Data: string, Executor: Player?)
+		if Executor and Utils.CheckPermissions(Executor) then
+			local Player = Players:FindFirstChild(Data) :: Player
+
+			if Player then
+				local TowerName = Player:GetAttribute("CurrentTower")
+				local Tower = workspace.Towers[TowerName]
+
+				if Tower then
+					Player.Character:PivotTo(
+						Tower.SpawnLocation.CFrame * CFrame.new(0, Player.Character:GetExtentsSize(), 0)
+					)
+				end
+			end
+		end
+	end)
+
+	CommandsNamespace.packets.Lock.listen(function(Data: string, Executor: Player?)
+		if Executor and Utils.CheckPermissions(Executor) then
+			local Player = Players:FindFirstChild(Data) :: Player
+
+			if Player then
+				Player:SetAttribute("TowersLocked", true)
+			end
+		end
+	end)
+	CommandsNamespace.packets.Unlock.listen(function(Data: string, Executor: Player?)
+		if Executor and Utils.CheckPermissions(Executor) then
+			local Player = Players:FindFirstChild(Data) :: Player
+
+			if Player then
+				Player:SetAttribute("TowersLocked", false)
+			end
+		end
 	end)
 end

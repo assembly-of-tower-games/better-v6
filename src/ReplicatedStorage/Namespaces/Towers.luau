@@ -19,6 +19,10 @@ return ByteNet.defineNamespace("Towers", function()
 
 			FinishedLoading = ByteNet.definePacket({
 				value = ByteNet.nothing
+			}),
+
+			RestartRequested = ByteNet.definePacket({
+				value = ByteNet.nothing
 			})
 		},
 	}

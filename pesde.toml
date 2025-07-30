@@ -1,0 +1,28 @@
+name = "hoe/betterv6"
+version = "0.1.0"
+description = "EToH fangame kit supporting V6 and V5.X towers."
+authors = ["Primiti-ve"]
+repository = "https://www.github.com/hegemony-over-etoh/better-v6"
+license = "GPL-3.0"
+
+[target]
+environment = "roblox"
+
+[indices]
+default = "https://github.com/pesde-pkg/index"
+
+[wally_indices]
+default = "https://github.com/UpliftGames/wally-index"
+
+[scripts]
+roblox_sync_config_generator = ".pesde/scripts/roblox_sync_config_generator.luau"
+sourcemap_generator = ".pesde/scripts/sourcemap_generator.luau"
+
+[dev_dependencies]
+scripts = { name = "pesde/scripts_rojo", version = "^0.1.0", target = "lune" }
+rojo = { name = "pesde/rojo", version = "^7.4.4", target = "lune" }
+
+[dependencies]
+ByteNet = { wally = "elitriare/bytenet-max", version = "^0.2.4" }
+TopbarPlus = { wally = "1foreverhd/topbarplus", version = "^3.3.1" }
+Cmdr = { wally = "evaera/cmdr", version = "^1.12.0" }

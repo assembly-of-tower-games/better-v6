@@ -1,9 +1,6 @@
-sourcemap.json
-Packages/
+/sourcemap.json
+/*_packages
 **/*.rbx[lm]*
-
-roblox.yml
-roblox.toml
 
 **/sourcemap.json
 dist/

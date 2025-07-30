@@ -10,7 +10,7 @@
       "$path": "src/ReplicatedStorage",
 
       "Packages": {
-        "$path": "Packages",
+        "$path": "roblox_packages",
         "$ignoreUnknownInstances": true
       }
     },

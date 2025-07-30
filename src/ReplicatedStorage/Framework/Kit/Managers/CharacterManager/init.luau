@@ -45,11 +45,10 @@ local TweenService = game:GetService("TweenService")
 local Framework = ReplicatedStorage.Framework
 
 local PropertyUtil = require(Framework.Kit.Utility.Property)
-local Config = require(Framework.Kit.Utility.Config)
 local GuiManager = require(Framework.Kit.Managers.GuiManager)
 local _TDefs = require(script.TypeDefs)
 
-local Namespaces = Framework.Namespaces
+local Namespaces = ReplicatedStorage.Namespaces
 local TowersNamespace = require(Namespaces.Towers)
 
 --[[

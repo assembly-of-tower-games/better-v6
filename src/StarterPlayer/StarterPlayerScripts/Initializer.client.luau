@@ -27,11 +27,13 @@ local Workspace = game:GetService("Workspace")
 local TextChatService = game:GetService("TextChatService")
 local GeneralChannel = TextChatService:WaitForChild("TextChannels"):WaitForChild("RBXGeneral") :: TextChannel
 
-local Framework = ReplicatedStorage.Framework
-local Namespaces = Framework.Namespaces
+local Namespaces = ReplicatedStorage.Namespaces
+
+local Packages = ReplicatedStorage.Packages
+local TopbarPlus = require(Packages.TopbarPlus)
 
 local TowersNamespace = require(Namespaces.Towers)
-local AnnouncementNamespace = require(Namespaces.Announcement)
+local AnnouncementsNamespace = require(Namespaces.Announcements)
 
 local Kit = ReplicatedStorage.Framework.Kit
 local KitSettings = require(ReplicatedStorage.KitSettings)
@@ -133,7 +135,7 @@ Players.LocalPlayer.CharacterAdded:Connect(function()
 
 	if
 		(KitSettings.ResetOnDeath and towerName == Players.LocalPlayer:GetAttribute("CurrentTower"))
-		or (Players.LocalPlayer:GetAttribute("LoadingTower"))
+		or (Players.LocalPlayer:GetAttribute("LoadingTower") or Players.LocalPlayer:GetAttribute("ForceRestarting"))
 	then
 		if Players.LocalPlayer:GetAttribute("CurrentTower") ~= "" then
 			task.defer(requestObjects)
@@ -142,6 +144,30 @@ Players.LocalPlayer.CharacterAdded:Connect(function()
 end)
 
 --> Handle Announcements
-AnnouncementNamespace.packets.WinAnnouncement.listen(function(Data: {Text: string, Colour: Color3})
+AnnouncementsNamespace.packets.WinAnnouncement.listen(function(Data: {Text: string, Colour: Color3})
 	GeneralChannel:DisplaySystemMessage(Data.Text)
+end)
+AnnouncementsNamespace.packets.AdminAnnouncement.listen(function(Data: {Message: string, PlayerName: string}, _Player: Player?)
+	GeneralChannel:DisplaySystemMessage(string.format("[%s] %s", Data.PlayerName, Data.Message))
+end)
+
+--> Handle MTKCommands
+local Cmdr = require(ReplicatedStorage:WaitForChild("CmdrClient") :: ModuleScript)
+local Button = TopbarPlus.new()
+
+Cmdr:SetPlaceName("MTKc")
+
+Button:setName("MTKCommands")
+Button:setImage("rbxassetid://11419714821")
+Button:setCaption("Command Bar")
+Button:setCaptionHint(Enum.KeyCode.F2)
+Button:align("Right")
+Button:oneClick()
+
+Button.selected:Connect(function()
+	if Button.isSelected then 
+		Cmdr:Show()
+	else
+		Cmdr:Hide()
+	end
 end)

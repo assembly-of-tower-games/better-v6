@@ -19,8 +19,7 @@ end
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Framework = ReplicatedStorage.Framework
-local Namespaces = Framework.Namespaces
+local Namespaces = ReplicatedStorage.Namespaces
 local TimerNamespace = require(Namespaces.Timer)
 
 local PlayerGui = Players.LocalPlayer.PlayerGui
