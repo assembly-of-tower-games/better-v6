@@ -1,0 +1,54 @@
+name: Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs: 
+  deploy:
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Main
+        uses: actions/checkout@v4
+
+      - name: Install RoKit
+        uses: CompeyDev/setup-rokit@v0.1.2
+        with:
+          token: ${{ github.token }}
+      
+      - name: Install Pesde
+        uses: lumin-org/setup-pesde@v0.4.1
+
+      - name: Install Dependencies
+        run: pesde install
+
+      - name: Build BetterV6.rbxm
+        run: rojo build -o BetterV6.rbxm pack.project.json
+
+      - name: Upload BetterV6.rbxm as build artifact
+        uses: actions/upload-artifact@v4
+        with: 
+          name: BetterV6
+          path: BetterV6.rbxm
+
+      - name: Get Version from pesde.toml
+        uses: SebRollen/toml-action@v1.0.0
+        id: read_toml
+        with: 
+          file: 'pesde.toml'
+          field: 'version'
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with: 
+          name: ${{ steps.read_toml.outputs.value }}
+          tag_name: ${{ steps.read_toml.outputs.value }}
+          files: BetterV6.rbxm
+          draft: true

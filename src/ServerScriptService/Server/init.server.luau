@@ -1,4 +1,3 @@
---!nocheck
 -- By @synnwave (29/11/24 DD/MM/YY)
 --[[
 --------------------------------------------------------------------------------
@@ -35,17 +34,21 @@ local TowersNamespace = require(Namespaces.Towers)
 local TimerNamespace = require(Namespaces.Timer)
 local AnnouncementsNamespace = require(Namespaces.Announcements)
 
+local Towers = workspace:WaitForChild("Towers") :: Folder & {Folder}
+
 local VERSION_NUMBER = "6.0.0"
 local timers = {}
 
 --------------------------------------------------------------------------------
 
-function findValue(parent: BasePart, name: string): string | nil
+function findValue(parent: Instance, name: string): any | nil
 	if parent:GetAttribute(name) then
-		return parent:GetAttribute(name) :: string
-	elseif parent:FindFirstChild(name) then
-		if parent:FindFirstChild(name):IsA("StringValue") then
-			return (parent:FindFirstChild(name) :: StringValue).Value
+		return parent:GetAttribute(name) :: any
+	elseif parent:FindFirstChild(name) then 
+		local child = parent[name] :: Instance
+
+		if child:IsA("ValueBase") then
+			return child.Value
 		end
 	end
 
@@ -59,7 +62,7 @@ function convertTime(seconds: number): string
 
 	local min = math.floor(seconds / 60)
 	local sec = seconds % 60
-	local ms = string.format("%.2f", tostring(seconds % 1)):sub(3, 4)
+	local ms = string.format("%.2f", seconds % 1):sub(3, 4)
 
 	return string.format("%02i:%02i.%02i", min, sec, ms)
 end
@@ -238,6 +241,10 @@ do --> Handle Tower Client Objects
 	local clones = {} :: { [Player]: Instance? }
 
 	TowersNamespace.packets.RequestCOFolder.listen(function(request: string, player: Player?)
+		if not player then 
+			return
+		end
+		
 		if request == "request" then
 			local clientObjectsFolder = getPlayerCOs(player)
 
@@ -426,7 +433,7 @@ do --> Init Towers
 			local plrTime = timers[player.UserId] or 0
 
 			timers[player.UserId] = nil
-			onPlayerWin(player, plrTime, workspace.Towers:FindFirstChild(towerName))
+			onPlayerWin(player, plrTime, Towers:FindFirstChild(towerName))
 
 			task.delay(WINPAD_DEBOUNCE, function()
 				winpad:SetAttribute("Debounce", false)
@@ -467,6 +474,10 @@ end
 
 do --> Init Tower Loading
 	TowersNamespace.packets.FinishedLoading.listen(function(_data, player: Player?)
+		if not player then
+			return
+		end
+		
 		player:SetAttribute("LoadingTower", false)
 	end)
 end

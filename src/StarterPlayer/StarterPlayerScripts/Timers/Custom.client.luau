@@ -1,5 +1,3 @@
---!nocheck
-
 if not game:IsLoaded() then
 	game.Loaded:Wait()
 end
@@ -11,7 +9,7 @@ function convertTime(seconds: number): string
 
 	local min = math.floor(seconds / 60)
 	local sec = seconds % 60
-	local ms = string.format("%.2f", tostring(seconds % 1)):sub(3, 4)
+	local ms = string.format("%.2f", seconds % 1):sub(3, 4)
 
 	return string.format("%02i:%02i.%02i", min, sec, ms)
 end

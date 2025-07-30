@@ -1,0 +1,27 @@
+{
+  "name": "BetterV6 Packed",
+
+  "tree": {
+    "$className": "Folder",
+
+    "ReplicatedStorage": {
+      "$ignoreUnknownInstances": true,
+      "$path": "src/Shared",
+
+      "Packages": {
+        "$ignoreUnknownInstances": true,
+        "$path": "Packages"
+      }
+    },
+
+    "ServerScriptService": {
+      "$ignoreUnknownInstances": true,
+      "$path": "src/Server"
+    },
+
+    "StarterPlayerScripts": {
+      "$ignoreUnknownInstances": true,
+      "$path": "src/Client"
+    }
+  }
+}
