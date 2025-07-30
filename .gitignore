@@ -1,6 +1,5 @@
 /sourcemap.json
 /*_packages
 **/*.rbx[lm]*
-
-**/sourcemap.json
-dist/
+/.pesde
+/pesde.lock
