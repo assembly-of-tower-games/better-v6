@@ -9,7 +9,7 @@ runs:
       with:
         repository: 'pesde-pkg/pesde'
         latest: true
-        fileName: 'linux-x86_64.tar.gz'
+        fileName: '*linux-x86_64.zip'
         extract: true
 
     - name: Install Pesde
