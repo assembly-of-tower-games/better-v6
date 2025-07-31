@@ -5,15 +5,15 @@ runs:
   using: composite
   steps:
     - name: Download Pesde
+      uses: robinraju/release-downloader@v1.12
+      with:
+        repository: 'pesde-pkg/pesde'
+        fileName: '*linux-x86_64.tar.gz'
+        extract: true
+
+    - name: Install Pesde
       shell: bash
       run: |
-        latest_release=$(curl -s https://github.com/pesde-pkg/pesde.git | jq '[.[] | select(.prerelease == true or .prerelease == false)][0]')
-        download_url=$(echo "$latest_release" | jq -r '.assets[] | select(.name | endswith("linux-x86_64.tar.gz")) | .browser_download_url')
-
-        curl -L -o /tmp/pesde.tar.gz "$download_url"
-        tar -xzvf /tmp/pesde.tar.gz
-        chmod +x pesde
-
         ./pesde self-install
         rm ./pesde
         echo "$HOME/.pesde/bin" >> $GITHUB_PATH
