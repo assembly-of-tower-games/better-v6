@@ -1,0 +1,19 @@
+name: Install Pesde
+description: Installs pesde CLI
+
+runs:
+  using: composite
+  steps:
+    - name: Download Pesde
+      shell: bash
+      run: |
+        latest_release=$(curl -s https://api.github.com/repos/pesde-pkg/pesde/releases | jq '[.[] | select(.prerelease == true or .prerelease == false)][0]')
+        download_url=$(echo "$latest_release" | jq -r '.assets[] | select(.name | endswith("linux-x86_64.tar.gz")) | .browser_download_url')
+
+        curl -L -o /tmp/pesde.tar.gz "$download_url"
+        tar -xzvf /tmp/pesde.tar.gz
+        chmod +x pesde
+
+        ./pesde self-install
+        rm ./pesde
+        echo "$HOME/.pesde/bin" >> $GITHUB_PATH

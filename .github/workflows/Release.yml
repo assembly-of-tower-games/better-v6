@@ -17,14 +17,9 @@ jobs:
     steps:
       - name: Checkout Main
         uses: actions/checkout@v4
-
-      - name: Install RoKit
-        uses: CompeyDev/setup-rokit@v0.1.2
-        with:
-          token: ${{ github.token }}
       
       - name: Install Pesde
-        uses: lumin-org/setup-pesde@v0.4.1
+        uses: ./.github/actions/setup-pesde
 
       - name: Install Dependencies
         run: pesde install
