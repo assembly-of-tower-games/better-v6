@@ -8,6 +8,13 @@ return ByteNet.defineNamespace("Timer", function()
 				reliabilityType = "unreliable",
 				value = ByteNet.float32,
 			}),
+
+			UpdateTowerRush = ByteNet.definePacket({
+				value = ByteNet.struct({
+					CurrentTower = ByteNet.int32,
+					TowerCount = ByteNet.int32
+				})
+			})
 		},
 	}
 end)

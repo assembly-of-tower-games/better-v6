@@ -9,6 +9,7 @@ runs:
       with:
         repository: 'pesde-pkg/pesde'
         latest: true
+        preRelease: false
         fileName: '*linux-x86_64.zip'
         extract: true
 

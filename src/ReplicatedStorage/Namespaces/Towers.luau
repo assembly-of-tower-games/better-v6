@@ -6,11 +6,7 @@ return ByteNet.defineNamespace("Towers", function()
 		packets = {
 			DamageEvent = ByteNet.definePacket({
 				reliabilityType = "unreliable",
-				value = ByteNet.int8
-			}),
-			DamageEventS = ByteNet.definePacket({
-				reliabilityType = "unreliable",
-				value = ByteNet.string
+				value = ByteNet.unknown
 			}),
 			
 			RequestCOFolder = ByteNet.definePacket({

@@ -1,674 +1,1006 @@
--- By @synnwave (29/11/24 DD/MM/YY)
---[[
---------------------------------------------------------------------------------
--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-⚠️  WARNING - PLEASE READ! ⚠️
-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-
-If you are submitting to EToH: 
-PLEASE, **DO NOT** make any script edits to this script. 
-This is a core script and any edits you make to this script will NOT work 
-elsewhere.
-
-If you have any suggestions, please let us know.
-Thank you
---------------------------------------------------------------------------------
-]]
-
 local PhysicsService = game:GetService("PhysicsService")
-local Players = game:GetService("Players")
+local PlayersService = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
 local RunService = game:GetService("RunService")
+local Teams = game:GetService("Teams")
 local ServerStorage = game:GetService("ServerStorage")
 
-local COLLISION_MAP = require(script.CollisionGroupMap)
-local KitSettings = require(ReplicatedStorage.KitSettings)
+local Types = require(script.Types)
 local InternalConfig = require(script.KitConfig)
+local COLLISION_MAP = require(script.CollisionGroupMap)
+local Leaderstats = require(script.Leaderstats)
 
 local Utility = ReplicatedStorage:WaitForChild("Framework"):WaitForChild("Kit"):WaitForChild("Utility")
 local WebhookUtils = require(Utility:WaitForChild("Webhooks"))
 
 local Namespaces = ReplicatedStorage.Namespaces
+local RealmData = ServerScriptService.RealmData
+local TowerCheckpointsFolder = ServerStorage.TowerCheckpointsFolder
+
+local TowerRushes = require(RealmData.TowerRushes) :: Types.Dictionary<Types.TowerRush>
+local KitSettings = require(ReplicatedStorage.KitSettings)
 
 local TowersNamespace = require(Namespaces.Towers)
 local TimerNamespace = require(Namespaces.Timer)
 local AnnouncementsNamespace = require(Namespaces.Announcements)
 
-local Towers = workspace:WaitForChild("Towers") :: Folder & {Folder}
+local Towers = workspace:WaitForChild("Towers") :: Folder & { Folder }
+local Portals = workspace:WaitForChild("Portals") :: Folder & { BasePart }
+local Markers = workspace:WaitForChild("Markers") :: Folder & { BasePart }
 
-local VERSION_NUMBER = "6.0.0"
-local timers = {}
+local InitiatedTowers = {} :: { Types.TowerInfo }
+local Players = {} :: { Types.PlayerInfo }
+local Timers = {} :: { [number]: number }
+
+local WinpadParticles: ParticleEmitter = ServerStorage.WinpadParticles
+local Winpads: Types.List<BasePart> = {}
+local WinpadMaterials: Types.List<Enum.Material> = Enum.Material:GetEnumItems()
 
 --------------------------------------------------------------------------------
 
-function findValue(parent: Instance, name: string): any | nil
-	if parent:GetAttribute(name) then
-		return parent:GetAttribute(name) :: any
-	elseif parent:FindFirstChild(name) then 
-		local child = parent[name] :: Instance
+function FindValue(Parent: Instance, Name: string): any | nil
+	if Parent:GetAttribute(Name) then
+		return Parent:GetAttribute(Name) :: any
+	elseif Parent:FindFirstChild(Name) then
+		local Child = Parent[Name] :: Instance
 
-		if child:IsA("ValueBase") then
-			return child.Value
+		if Child:IsA("ValueBase") then
+			return Child.Value
 		end
 	end
 
 	return nil
 end
 
-function convertTime(seconds: number): string
-	if seconds == nil then
+function ConvertTime(Seconds: number): string
+	if Seconds == nil then
 		return "XX:XX.XX"
 	end
 
-	local min = math.floor(seconds / 60)
-	local sec = seconds % 60
-	local ms = string.format("%.2f", seconds % 1):sub(3, 4)
+	local Minute = math.floor(Seconds / 60)
+	local Second = Seconds % 60
+	local Millisecond = string.format("%.2f", Seconds % 1):sub(3, 4)
 
-	return string.format("%02i:%02i.%02i", min, sec, ms)
+	return string.format("%02i:%02i.%02i", Minute, Second, Millisecond)
 end
 
-function step(deltaTime: number)
-	for id, timer in pairs(timers) do
-		local plr = Players:GetPlayerByUserId(id)
+function ParseColour(colour: Color3)
+	local R = (colour.R * 255)
+	local G = (colour.G * 255)
+	local B = (colour.B * 255)
 
-		if plr then
-			timers[id] = timer + deltaTime
+	return string.format("rgb(%d, %d, %d)", R, G, B)
+end
 
-			TimerNamespace.packets.CorrectTimer.sendTo(timers[id], plr)
+function IsPlayerPart(Hit: BasePart)
+	if Hit.Parent and Hit.Parent:FindFirstChild("Humanoid") then
+		local Player: Player? = PlayersService:GetPlayerFromCharacter(Hit.Parent)
+
+		if Player then
+			return true, Player.Name
+		end
+	end
+
+	return false, ""
+end
+
+function ResetPlayerInfo(Player: Types.PlayerInfo)
+	Player.CurrentTowerRush = ""
+	Player.CurrentTowerRushIndex = 0
+end
+
+function Step(Time: number, DeltaTime: number)
+	Leaderstats.Step(DeltaTime)
+
+	for ID, Timer in pairs(Timers) do
+		local Player = PlayersService:GetPlayerByUserId(ID)
+
+		if Player then
+			local NewTimer = Timer + DeltaTime
+
+			Timers[ID] = NewTimer
+			TimerNamespace.packets.CorrectTimer.sendTo(NewTimer, Player)
+		end
+	end
+
+	local PrevInterval: number = math.floor((Time - DeltaTime) / KitSettings.WinpadSettings.Interval)
+		* KitSettings.WinpadSettings.Interval
+	local CurrentInterval: number = math.floor(Time / KitSettings.WinpadSettings.Interval)
+		* KitSettings.WinpadSettings.Interval
+
+	if PrevInterval < CurrentInterval then
+		for _, Winpad: BasePart in pairs(Winpads) do
+			if KitSettings.WinpadSettings.ChangeColour then
+				Winpad.Color = Color3.fromHSV(math.random(0, 100) / 100, 1, 1)
+			end
+
+			if KitSettings.WinpadSettings.ChangeMaterial then
+				Winpad.Material = WinpadMaterials[math.random(1, #WinpadMaterials)]
+			end
 		end
 	end
 end
 
 --------------------------------------------------------------------------------
 
-do --> Collision Groups
-	-- first iteration: register collision groups from the map
-	for groupName in COLLISION_MAP do
-		PhysicsService:RegisterCollisionGroup(groupName)
-	end
+for GroupName, Map in pairs(COLLISION_MAP) do
+	PhysicsService:RegisterCollisionGroup(GroupName)
+end
 
-	-- second iteration: set groups collidable
-	for groupName, map in COLLISION_MAP do
-		for _, doesNotCollideWith in map do
-			PhysicsService:CollisionGroupSetCollidable(groupName, doesNotCollideWith, false)
-		end
+for GroupName, Map in pairs(COLLISION_MAP) do
+	for _, DoesNotCollideWith in pairs(Map) do
+		PhysicsService:CollisionGroupSetCollidable(GroupName, DoesNotCollideWith, false)
 	end
 end
 
 --------------------------------------------------------------------------------
 
-do --> Damage Event
-	local debounceArray = {} :: { [Player]: boolean? }
+local DebounceArray = {} :: { [Player]: boolean? }
 
-	function handleDamage(player: Player, type: string | number)
-		if debounceArray[player] then
-			return
-		end
-
-		local character = player.Character
-		if not character then
-			return
-		end
-
-		local humanoid = character:FindFirstChildOfClass("Humanoid")
-		if not humanoid then
-			return
-		end
-
-		local damageValue = if typeof(type) == "number" then type else 5
-		if type == "Heals" then
-			damageValue = -(humanoid.MaxHealth - humanoid.Health)
-		end
-
-		if damageValue > 0 then -- no debounce for healing
-			debounceArray[player] = true
-			task.delay(0.1, function()
-				debounceArray[player] = nil
-			end)
-		end
-
-		humanoid:TakeDamage(damageValue)
-		if humanoid.Health > humanoid.MaxHealth then
-			humanoid.Health = humanoid.MaxHealth
-		end
+function HandleDamage(Player: Player, Type: string | number)
+	if DebounceArray[Player] then
+		return
 	end
 
-	TowersNamespace.packets.DamageEvent.listen(function(data: number, player: Player?)
-		handleDamage(player :: Player, data)
-	end)
-	TowersNamespace.packets.DamageEventS.listen(function(data: string, player: Player?)
-		handleDamage(player :: Player, data)
-	end)
-end
+	local Character = Player.Character
+	local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
 
---------------------------------------------------------------------------------
-
-do --> Handle Tower Client Objects
-	--> Move client objects folder to where they need to go
-	function getPlayerCOs(player: Player)
-		local tower = player:GetAttribute("CurrentTower") or ""
-
-		if tower == "" then
-			return nil
-		end
-
-		local clientObjectsFolder = ServerStorage.ClientObjects:FindFirstChild(tower)
-
-		if not clientObjectsFolder then
-			return nil
-		end
-
-		--> Make ModuleScript pointers
-		-- this is to help reduce memory usage when requiring modules !
-		-- i'm still keeping repository scripts the way they are though because
-		-- this is meant for much smaller modules like lighting configurations
-		local pointerTemplate = Instance.new("ObjectValue")
-		pointerTemplate:AddTag("OBJ_POINTER")
-
-		local pointerContainer = ReplicatedStorage:FindFirstChild("__POINTER_STORAGE") or Instance.new("Folder")
-		pointerContainer.Name = "__POINTER_STORAGE"
-		pointerContainer.Parent = ReplicatedStorage
-
-		local pointerLinkContainer = ReplicatedStorage:FindFirstChild("__POINTER_LINK_STORAGE")
-			or Instance.new("Folder")
-		pointerLinkContainer.Name = "__POINTER_LINK_STORAGE"
-		pointerLinkContainer.Parent = ReplicatedStorage
-
-		local warnings = {}
-		local version = clientObjectsFolder:GetAttribute("KitVersion")
-		if version ~= VERSION_NUMBER then
-			table.insert(warnings, {
-				"ClientObjects folder is missing its KitVersion Attribute or is outdated",
-				`Current version is: {VERSION_NUMBER}`,
-			})
-		end
-
-		local descendantCount = 0
-		local partCount = 0
-
-		for _, instance in clientObjectsFolder:GetDescendants() do
-			descendantCount += 1
-
-			if instance:IsA("ModuleScript") then
-				local pointerLink = pointerTemplate:Clone()
-				pointerLink.Value = instance.Parent
-				pointerLink.Name = instance.Parent.Name
-				pointerLink.Parent = pointerLinkContainer
-
-				local thisPointer = pointerTemplate:Clone()
-				thisPointer.Value = instance
-				thisPointer.Name = instance.Name
-				thisPointer.Parent = instance.Parent
-
-				instance.Name = pointerLink.Name
-				--instance.Parent = pointerContainer
-			elseif instance:IsA("BasePart") then
-				partCount += 1
-
-				if instance.CollisionGroup == "Default" and not instance:FindFirstAncestor("LightingChangers") then
-					instance.CollisionGroup = "ClientObjects"
-				end
-
-				if
-					instance.Name == "LightingChanger"
-					or instance:FindFirstChild("invisible")
-					or instance:FindFirstChild("Invisible")
-				then
-					instance:AddTag("Invisible")
-
-					if instance:FindFirstChild("invisible") then
-						instance.invisible:Destroy()
-					end
-					if instance:FindFirstChild("Invisible") then
-						instance.Invisible:Destroy()
-					end
-				end
-			elseif instance:IsA("NoCollisionConstraint") and instance:FindFirstAncestorOfClass("BasePart") then
-				instance:FindFirstAncestorOfClass("BasePart").CollisionGroup = "ClientObjects"
-				instance:FindFirstAncestorOfClass("BasePart").CanCollide = false
-
-				instance:Destroy()
-			end
-		end
-
-		ReplicatedStorage.KitSettings:SetAttribute("COPartCount", partCount)
-		ReplicatedStorage.KitSettings:SetAttribute("COInstanceCount", descendantCount)
-
-		return clientObjectsFolder
+	if not (Character or Humanoid) then
+		return
 	end
 
-	--> Listen to client requests
-	local clones = {} :: { [Player]: Instance? }
+	local DamageValue = if typeof(Type) == "number" then Type else 5
 
-	TowersNamespace.packets.RequestCOFolder.listen(function(request: string, player: Player?)
-		if not player then 
-			return
-		end
-		
-		if request == "request" then
-			local clientObjectsFolder = getPlayerCOs(player)
-
-			if not clientObjectsFolder then
-				return
-			end
-
-			local playerGui = player:WaitForChild("PlayerGui")
-			local clonedFolder = clientObjectsFolder:Clone()
-
-			clonedFolder:AddTag("ClientObjects")
-			clonedFolder.Parent = playerGui
-
-			clones[player] = clonedFolder
-		elseif request == "cleanup" then
-			local clone = clones[player]
-
-			if clone then
-				clone:Destroy()
-			end
-
-			clones[player] = nil
-		end
-	end)
-end
-
---------------------------------------------------------------------------------
-
-do --> Init Player Attributes
-	function CharacterAdded(character: Model)
-		local player = Players:GetPlayerFromCharacter(character)
-
-		if player then
-			task.defer(function()
-				if not KitSettings.ResetOnDeath and not player:GetAttribute("LoadingTower") then
-					player:SetAttribute("CurrentTower", "")
-				end
-			end)
-		end
+	if Type == "Heals" then
+		DamageValue = -(Humanoid.MaxHealth - Humanoid.Health)
 	end
 
-	function PlayerAdded(player: Player)
-		if player.Character then
-			task.spawn(CharacterAdded, player.Character)
-		end
-		player.CharacterAdded:Connect(CharacterAdded)
+	if DamageValue > 0 then
+		DebounceArray[Player] = true
 
-		player:SetAttribute("ForceRestarting", false)
-
-		player:GetAttributeChangedSignal("ForceRestarting"):Connect(function()
-			if player:GetAttribute("ForceRestarting") then
-				timers[player.UserId] = 0
-			end
+		task.delay(0.1, function()
+			DebounceArray[Player] = nil
 		end)
+	end
 
-		player:SetAttribute("CurrentTower", "")
-		player:SetAttribute("LoadingTower", false)
+	Humanoid:TakeDamage(DamageValue)
 
-		player:GetAttributeChangedSignal("CurrentTower"):Connect(function()
+	if Humanoid.Health > Humanoid.MaxHealth then
+		Humanoid.Health = Humanoid.MaxHealth
+	end
+end
+
+TowersNamespace.packets.DamageEvent.listen(function(Data: string | number, Player: Player?)
+	if not Player then
+		return
+	end
+
+	HandleDamage(Player, Data)
+end)
+
+--------------------------------------------------------------------------------
+
+function GetClientObjects(Player: Player)
+	local Tower = Player:GetAttribute("CurrentTower") or ""
+
+	if Tower == "" then
+		return nil
+	end
+
+	local ClientObjectsFolder = ServerStorage.ClientObjects:FindFirstChild(Tower)
+
+	if not ClientObjectsFolder then
+		return nil
+	end
+
+	local PointerTemplate = Instance.new("ObjectValue")
+	PointerTemplate:AddTag("OBJ_POINTER")
+
+	local PointerContainer = ReplicatedStorage:FindFirstChild("__POINTER_STORAGE") or Instance.new("Folder")
+	PointerContainer.Name = "__POINTER_STORAGE"
+	PointerContainer.Parent = ReplicatedStorage
+
+	local PointerLinkContainer = ReplicatedStorage:FindFirstChild("__POINTER_LINK_STORAGE") or Instance.new("Folder")
+	PointerLinkContainer.Name = "__POINTER_LINK_STORAGE"
+	PointerLinkContainer.Parent = ReplicatedStorage
+
+	local DescendantCount = 0
+	local PartCount = 0
+
+	for _, Descendant in pairs(ClientObjectsFolder:GetDescendants()) do
+		DescendantCount += 1
+
+		if Descendant:IsA("ModuleScript") then
+			local PointerLink = PointerTemplate:Clone()
+			PointerLink.Value = Descendant.Parent
+			PointerLink.Name = Descendant.Parent.Name
+			PointerLink.Parent = PointerLinkContainer
+
+			local ThisPointer = PointerTemplate:Clone()
+			ThisPointer.Value = Descendant
+			ThisPointer.Name = Descendant.Name
+			ThisPointer.Parent = Descendant.Parent
+
+			Descendant.Name = PointerLink.Name
+		elseif Descendant:IsA("BasePart") then
+			PartCount += 1
+
+			if Descendant.CollisionGroup == "Default" and not Descendant:FindFirstAncestor("LightingChangers") then
+				Descendant.CollisionGroup = "ClientObjects"
+			end
+
 			if
-				not player:GetAttribute("LoadingTower")
-				and ServerStorage.ClientObjects:FindFirstChild(player:GetAttribute("CurrentTower"))
+				Descendant.Name == "LightingChanger"
+				or Descendant:FindFirstChild("invisible")
+				or Descendant:FindFirstChild("Invisible")
 			then
-				if player:GetAttribute("TowersLocked") then
-					return
+				Descendant:AddTag("Invisible")
+
+				if Descendant:FindFirstChild("invisible") then
+					Descendant.invisible:Destroy()
 				end
 
-				player:SetAttribute("LoadingTower", true)
-				player:LoadCharacter()
+				if Descendant:FindFirstChild("Invisible") then
+					Descendant.Invisible:Destroy()
+				end
 			end
-		end)
-	end
-	function PlayerRemoving(player: Player)
-		if timers[player.UserId] then
-			timers[player.UserId] = nil
+		elseif Descendant:IsA("NoCollisionConstraint") and Descendant:FindFirstAncestorOfClass("BasePart") then
+			Descendant:FindFirstAncestorOfClass("BasePart").CollisionGroup = "ClientObjects"
+			Descendant:FindFirstAncestorOfClass("BasePart").CanCollide = false
+
+			Descendant:Destroy()
 		end
 	end
 
-	for _, player in pairs(Players:GetPlayers()) do
-		task.spawn(PlayerAdded, player)
+	ReplicatedStorage.KitSettings:SetAttribute("COPartCount", PartCount)
+	ReplicatedStorage.KitSettings:SetAttribute("COInstanceCount", DescendantCount)
+
+	return ClientObjectsFolder
+end
+
+local Clones = {} :: { [Player]: Instance? }
+
+TowersNamespace.packets.RequestCOFolder.listen(function(Request: string, Player: Player?)
+	if not Player then
+		return
 	end
 
-	Players.PlayerAdded:Connect(PlayerAdded)
-	Players.PlayerRemoving:Connect(PlayerRemoving)
-end
+	if Request == "Replicate" then
+		local ClientObjectsFolder = GetClientObjects(Player)
+
+		if not ClientObjectsFolder then
+			return
+		end
+
+		local PlayerGui = Player:WaitForChild("PlayerGui")
+		local ClonedFolder = ClientObjectsFolder:Clone()
+
+		ClonedFolder:AddTag("ClientObjects")
+		ClonedFolder.Parent = PlayerGui
+
+		Clones[Player] = ClonedFolder
+	elseif Request == "Cleanup" then
+		local Clone = Clones[Player]
+
+		if Clone then
+			Clone:Destroy()
+		end
+
+		Clones[Player] = nil
+	end
+end)
 
 --------------------------------------------------------------------------------
 
-do --> Init Towers
-	local WINPAD_DEBOUNCE = 0.5
+function TeleportToWinroom(Player: Types.PlayerInfo, WinroomMarker: string)
+	Player.Player.Team = Teams.Winners
+	Player.Player:SetAttribute("CurrentTower", "")
 
-	function parseColour(colour: Color3)
-		local R = (colour.R * 255)
-		local G = (colour.G * 255)
-		local B = (colour.B * 255)
+	ResetPlayerInfo(Player)
 
-		return string.format("rgb(%d, %d, %d)", R, G, B)
+	local WinroomPart: Instance?
+
+	if WinroomMarker ~= "" then
+		WinroomPart = Markers:FindFirstChild(WinroomMarker, true)
+	else
+		WinroomPart = Markers:FindFirstChild("WinroomSpawn", true)
 	end
 
-	function onPlayerWin(player: Player, plrTime: number, tower: Folder)
-		local difficulty = findValue(tower, "Difficulty") or "Easy"
-		local difficultyEmojiID = InternalConfig.Webhooks.Difficulties[difficulty]
-		local name = findValue(tower, "ProperName") or tower.Name
-		local convertedTime = convertTime(plrTime)
+	if WinroomPart and WinroomPart:IsA("BasePart") then
+		local Character = Player.Player.Character or Player.Player.CharacterAdded:Wait()
 
-		local message = RunService:IsStudio() and InternalConfig.Webhooks.Testing.Message
+		Character:PivotTo(WinroomPart.CFrame)
+	end
+end
+
+function WinAnnouncement(Player: Player, PlayerTime: number, Tower: Folder | nil, TowerRush: Types.TowerRush | nil)
+	if Tower then
+		local Difficulty = FindValue(Tower, "Difficulty") or "Easy"
+		local DifficultyEmojiID = InternalConfig.Webhooks.Difficulties[Difficulty]
+		local TowerName = FindValue(Tower, "ProperName") or Tower.Name
+		local ConvertedTime = ConvertTime(PlayerTime)
+
+		local Message = RunService:IsStudio() and InternalConfig.Webhooks.Testing.Message
 			or InternalConfig.Webhooks.Message
-		local url = RunService:IsStudio() and InternalConfig.Webhooks.Testing.Normal or InternalConfig.Webhooks.Normal
-		local timestamp = WebhookUtils:GetTimestamp("f")
+		local URL = RunService:IsStudio() and InternalConfig.Webhooks.Testing.Normal or InternalConfig.Webhooks.Normal
+		local Timestamp = WebhookUtils:GetTimestamp("f")
 
-		message = string.gsub(message, "{DisplayName}", player.DisplayName)
-		message = string.gsub(message, "{Username}", player.Name)
-		message = string.gsub(message, "{TowerName}", name)
-		message = string.gsub(message, "{Difficulty}", difficulty)
-		message = string.gsub(message, "{DifficultyEmoji}", string.format("<:%s:%s>", difficulty, difficultyEmojiID))
-		message = string.gsub(message, "{Time}", convertedTime)
-		message = string.gsub(message, "{Timestamp}", timestamp)
+		Message = string.gsub(Message, "{DisplayName}", Player.DisplayName)
+		Message = string.gsub(Message, "{Username}", Player.Name)
+		Message = string.gsub(Message, "{TowerName}", TowerName)
+		Message = string.gsub(Message, "{Difficulty}", Difficulty)
+		Message = string.gsub(Message, "{DifficultyEmoji}", string.format("<:%s:%s>", Difficulty, DifficultyEmojiID))
+		Message = string.gsub(Message, "{Time}", ConvertedTime)
+		Message = string.gsub(Message, "{Timestamp}", Timestamp)
 
 		WebhookUtils:Post({
-			Message = message,
-			URL = url,
+			Message = Message,
+			URL = URL,
 		})
 
-		local winMessage = InternalConfig.WinMessage
-		local difficultyColour = parseColour(InternalConfig.Webhooks.DifficultyColours[difficulty])
+		local WinMessage = InternalConfig.WinMessage
+		local DifficultyColour = ParseColour(InternalConfig.Webhooks.DifficultyColours[Difficulty])
 
-		winMessage = string.gsub(winMessage, "{DisplayName}", player.DisplayName)
-		winMessage = string.gsub(winMessage, "{Username}", player.Name)
-		winMessage = string.gsub(winMessage, "{TowerName}", name)
-		winMessage = string.gsub(winMessage, "{Difficulty}", difficulty)
-		winMessage = string.gsub(winMessage, "{Time}", convertedTime)
-		winMessage = string.format(`<font color="%s">%s</font>`, difficultyColour, winMessage)
+		WinMessage = string.gsub(WinMessage, "{DisplayName}", Player.DisplayName)
+		WinMessage = string.gsub(WinMessage, "{Username}", Player.Name)
+		WinMessage = string.gsub(WinMessage, "{TowerName}", TowerName)
+		WinMessage = string.gsub(WinMessage, "{Difficulty}", Difficulty)
+		WinMessage = string.gsub(WinMessage, "{Time}", ConvertedTime)
+		WinMessage = string.format(`<font color="%s">%s</font>`, DifficultyColour, WinMessage)
 
 		AnnouncementsNamespace.packets.WinAnnouncement.sendToAll({
-			Text = winMessage,
+			Text = WinMessage,
 			Colour = Color3.fromRGB(255, 255, 255),
 		})
+	elseif TowerRush then
+		local Difficulty = TowerRush.Difficulty or "Easy"
+		local DifficultyEmojiID = InternalConfig.Webhooks.Difficulties[Difficulty]
+		local TowerName = TowerRush.Title
+		local ConvertedTime = ConvertTime(PlayerTime)
 
-		player:SetAttribute("CurrentTower", "")
-		player:LoadCharacter()
-	end
+		local Message = RunService:IsStudio() and InternalConfig.Webhooks.Testing.Message
+			or InternalConfig.Webhooks.Message
+		local URL = RunService:IsStudio() and InternalConfig.Webhooks.Testing.Normal or InternalConfig.Webhooks.Normal
+		local Timestamp = WebhookUtils:GetTimestamp("f")
 
-	function initWinpad(winpad: BasePart)
-		if not winpad then
-			return
-		end
+		Message = string.gsub(Message, "{DisplayName}", Player.DisplayName)
+		Message = string.gsub(Message, "{Username}", Player.Name)
+		Message = string.gsub(Message, "{TowerName}", TowerName)
+		Message = string.gsub(Message, "{Difficulty}", Difficulty)
+		Message = string.gsub(Message, "{DifficultyEmoji}", string.format("<:%s:%s>", Difficulty, DifficultyEmojiID))
+		Message = string.gsub(Message, "{Time}", ConvertedTime)
+		Message = string.gsub(Message, "{Timestamp}", Timestamp)
 
-		local towerName = findValue(winpad, "TowerName")
+		WebhookUtils:Post({
+			Message = Message,
+			URL = URL,
+		})
 
-		if towerName == nil then
-			return
-		end
-		if not workspace.Towers:FindFirstChild(towerName) then
-			return
-		end
+		local WinMessage = InternalConfig.WinMessage
+		local DifficultyColour = ParseColour(InternalConfig.Webhooks.DifficultyColours[Difficulty])
 
-		winpad:SetAttribute("Debounce", false)
-		winpad.Touched:Connect(function(Hit)
-			if winpad:GetAttribute("Debounce") then
-				return
-			end
+		WinMessage = string.gsub(WinMessage, "{DisplayName}", Player.DisplayName)
+		WinMessage = string.gsub(WinMessage, "{Username}", Player.Name)
+		WinMessage = string.gsub(WinMessage, "{TowerName}", TowerName)
+		WinMessage = string.gsub(WinMessage, "{Difficulty}", Difficulty)
+		WinMessage = string.gsub(WinMessage, "{Time}", ConvertedTime)
+		WinMessage = string.format(`<font color="%s">%s</font>`, DifficultyColour, WinMessage)
 
-			if not Hit then
-				return
-			end
-			if not Hit.Parent or not Hit.Parent:IsA("Model") or not Hit.Parent:FindFirstChildOfClass("Humanoid") then
-				return
-			end
-
-			local character = Hit.Parent
-			local player = Players:GetPlayerFromCharacter(Hit.Parent)
-
-			if not character or not player then
-				return
-			end
-
-			if player:GetAttribute("CurrentTower") ~= towerName then
-				return
-			end
-
-			if player:GetAttribute("TowersLocked") then
-				return
-			end
-
-			winpad:SetAttribute("Debounce", true)
-			local plrTime = timers[player.UserId] or 0
-
-			timers[player.UserId] = nil
-			onPlayerWin(player, plrTime, Towers:FindFirstChild(towerName))
-
-			task.delay(WINPAD_DEBOUNCE, function()
-				winpad:SetAttribute("Debounce", false)
-			end)
-		end)
-	end
-
-	function initTower(tower: Folder)
-		do --> Init ClientSidedObjects
-			local clientSidedObjects = tower:FindFirstChild("ClientSidedObjects")
-
-			if tower:FindFirstChild("ClientSidedObjects") then
-				local towerLink = Instance.new("ObjectValue")
-				towerLink.Name = "TowerLink"
-				towerLink.Value = tower
-				towerLink.Parent = clientSidedObjects
-
-				clientSidedObjects.Name = tower.Name
-				clientSidedObjects.Parent = ServerStorage.ClientObjects
-			end
-		end
-
-		do --> Init Winpad
-			local winpad = tower:FindFirstChild("WinPad", true)
-
-			if winpad then
-				initWinpad(winpad)
-			end
-		end
-	end
-
-	for _, tower in pairs(workspace.Towers:GetChildren()) do
-		if tower:HasTag("Tower") then
-			initTower(tower)
-		end
+		AnnouncementsNamespace.packets.WinAnnouncement.sendToAll({
+			Text = WinMessage,
+			Colour = Color3.fromRGB(255, 255, 255),
+		})
 	end
 end
 
-do --> Init Tower Loading
-	TowersNamespace.packets.FinishedLoading.listen(function(_data, player: Player?)
-		if not player then
-			return
-		end
-		
-		player:SetAttribute("LoadingTower", false)
-	end)
-end
-
---------------------------------------------------------------------------------
-
-do --> Init Portals
-	local PORTAL_DEBOUNCE = 0.5
-
-	function initPortal(portal: BasePart)
-		if not portal then
-			return
-		end
-
-		local towerName = findValue(portal, "TowerName")
-
-		if towerName == nil then
-			return
-		end
-		if not workspace.Towers:FindFirstChild(towerName) then
-			return
-		end
-
-		portal:SetAttribute("Debounce", false)
-		portal.Touched:Connect(function(Hit)
-			if portal:GetAttribute("Debounce") then
-				return
-			end
-
-			if not Hit then
-				return
-			end
-			if not Hit.Parent or not Hit.Parent:IsA("Model") or not Hit.Parent:FindFirstChildOfClass("Humanoid") then
-				return
-			end
-
-			local character = Hit.Parent
-			local player = Players:GetPlayerFromCharacter(Hit.Parent)
-
-			if not character or not player then
-				return
-			end
-
-			if player:GetAttribute("CurrentTower") == towerName then
-				return
-			end
-
-			if player:GetAttribute("TowersLocked") then
-				return
-			end
-
-			portal:SetAttribute("Debounce", true)
-
-			player:SetAttribute("CurrentTower", towerName)
-			timers[player.UserId] = 0
-
-			task.delay(PORTAL_DEBOUNCE, function()
-				portal:SetAttribute("Debounce", false)
-			end)
-		end)
+function PlayerLoadTower(Player: Types.PlayerInfo, TowerName: string, ResetTimer: boolean)
+	if not Player.Player or Player.Player:GetAttribute("LoadingTower") then
+		return
 	end
 
-	for _, portal in pairs(workspace.Portals:GetChildren()) do
-		if portal:IsA("BasePart") and portal:HasTag("TowerPortal") then
-			initPortal(portal)
+	Player.Player:SetAttribute("CurrentTower", TowerName)
+	print("test")
+
+	if ResetTimer then
+		Timers[Player.Player.UserId] = 0
+	end
+end
+
+function OnPlayerWin(
+	Player: Types.PlayerInfo,
+	PlayerTime: number,
+	Tower: Folder | nil,
+	TowerRush: Types.TowerRush | nil
+)
+	WinAnnouncement(Player.Player, PlayerTime, Tower, TowerRush)
+
+	Player.Player:SetAttribute("CurrentTower", "")
+	Player.Player:LoadCharacter()
+end
+
+function PlayerLoadTowerRush(Player: Types.PlayerInfo, TowerRushName: string)
+	print("a")
+
+	if not Player.Player or Player.Player:GetAttribute("LoadingTower") then
+		return
+	end
+
+	print("b")
+	print(TowerRushName)
+
+	local TowerRush = TowerRushes[TowerRushName]
+
+	print("c")
+	print(TowerRushes)
+	print(TowerRush)
+
+	if TowerRush then
+		print("d")
+
+		Player.CurrentTowerRush = TowerRushName
+		Player.CurrentTowerRushIndex = 1
+
+		print("e")
+
+		local FirstTower = TowerRush.Towers[1]
+		local TowerCount = #TowerRush.Towers
+
+		print("f")
+
+		PlayerLoadTower(Player, FirstTower, true)
+		TimerNamespace.packets.UpdateTowerRush.sendTo({
+			CurrentTower = 1,
+			TowerCount = TowerCount,
+		}, Player)
+
+		print("g")
+	end
+end
+
+function AdvanceTowerRush(PlayerName: string)
+	local Player: Types.PlayerInfo? = Players[PlayerName]
+
+	if Player then
+		local TowerRush: Types.TowerRush? = TowerRushes[Player.CurrentTowerRush]
+
+		if TowerRush then
+			local TowerCount: number = #TowerRush.Towers
+			local CurrentTowerRushIndex = Player.CurrentTowerRushIndex
+
+			if CurrentTowerRushIndex >= TowerCount then
+				local PlayerTime = Timers[Player.Player.UserId] or 0
+				Timers[Player.Player.UserId] = nil
+
+				OnPlayerWin(Player, PlayerTime, nil, TowerRush)
+				TeleportToWinroom(Player, TowerRush.WinroomMarker)
+			else
+				Player.CurrentTowerRushIndex += 1
+
+				local TowerName: string = TowerRush.Towers[Player.CurrentTowerRushIndex]
+
+				PlayerLoadTower(Player, TowerName, false)
+				TimerNamespace.packets.UpdateTowerRush.sendTo(
+					{ CurrentTower = Player.CurrentTowerRushIndex, TowerCount = TowerCount },
+					Player
+				)
+			end
 		end
 	end
 end
 
 --------------------------------------------------------------------------------
 
-do --> Step Function
-	RunService.Stepped:Connect(function(time, deltaTime)
-		step(deltaTime)
-	end)
-end
+local WINPAD_DEBOUNCE = 0.5
+local PORTAL_DEBOUNCE = 0.5
 
---------------------------------------------------------------------------------
+function PlayerTouchedWinpad(Winpad: BasePart, Player: Types.PlayerInfo, EndingID: string)
+	print("a")
+	local TowerName = FindValue(Winpad, "TowerName")
+	local Tower = Towers:FindFirstChild(TowerName)
+	print("b")
 
-do --> Init MTKCommands
-	task.spawn(require(script.Cmdr))
-end
+	if Player.Player:GetAttribute("CurrentTower") ~= TowerName or Player.Player:GetAttribute("TowersLocked") then
+		return
+	end
+	print("c")
 
---------------------------------------------------------------------------------
+	if Player.CurrentTowerRush == "" then
+		local TowerInfo: Types.TowerInfo = InitiatedTowers[TowerName]
+		local Ending: Types.EndingInfo = TowerInfo.Endings[EndingID]
 
-do --> Init Command Runner
-	local CommandsNamespace = require(ReplicatedStorage:WaitForChild("Namespaces"):WaitForChild("Commands"))
-	local Utils = require(ReplicatedStorage:WaitForChild("MTKCommands"):WaitForChild("Utils"))
+		local PlayerTime = Timers[Player.Player.UserId] or 0
+		local EndingWinroom: string = ""
 
-	CommandsNamespace.packets.LoadTower.listen(
-		function(Data: { Player: string, TowerName: string, ResetTimer: boolean }, Executor: Player?)
-			if Executor and Utils.CheckPermissions(Executor) then
-				local Player = Players:FindFirstChild(Data.Player) :: Player
-
-				if Player then
-					Player:SetAttribute("CurrentTower", Data.TowerName)
-
-					if (not timers[Player.UserId]) or Data.ResetTimer then
-						timers[Player.UserId] = 0
-					end
-				end
-			end
+		if EndingID ~= TowerName then
+			EndingWinroom = Ending.WinroomMarker
 		end
-	)
 
-	CommandsNamespace.packets.UnloadTower.listen(function(Data: string, Executor: Player?)
-		if Executor and Utils.CheckPermissions(Executor) then
-			local Player = Players:FindFirstChild(Data) :: Player
+		Timers[Player.Player.UserId] = nil
 
-			if Player then
-				if Player:GetAttribute("TowersLocked") then
+		TimerNamespace.packets.UpdateTowerRush.sendTo({
+			CurrentTower = 0,
+			TowerCount = 0,
+		}, Player)
+
+		OnPlayerWin(Player, PlayerTime, Tower)
+		TeleportToWinroom(Player, EndingWinroom)
+	else
+		AdvanceTowerRush(Player.Player.Name)
+	end
+end
+
+function InitWinpad(TowerName: string, Winpad: BasePart)
+	if not Winpad then
+		return
+	end
+
+	if TowerName == nil or not Towers:FindFirstChild(TowerName) then
+		return
+	end
+
+	local Particles: ParticleEmitter = WinpadParticles:Clone()
+	Particles.Parent = Winpad
+
+	local EndingID: string = FindValue(Winpad, "EndingID") or ""
+
+	if EndingID == "" then
+		Winpad:SetAttribute("EndingID", TowerName)
+		EndingID = TowerName
+	end
+
+	local ParentTower: string = FindValue(Winpad, "ParentTower") or ""
+
+	if ParentTower == "" then
+		if TowerName == "" then
+			error(
+				'Could not setup winpad "'
+					.. Winpad:GetFullName()
+					.. " because it's parent tower is undefined (and could not be implicitly figured out)"
+			)
+		end
+
+		Winpad:SetAttribute("ParentTower", TowerName)
+	end
+
+	local Tower: Types.TowerInfo? = InitiatedTowers[TowerName]
+
+	if Tower then
+		local Ending: Types.EndingInfo = {
+			Name = FindValue(Winpad, "EndingName") or Tower.Name,
+			Difficulty = FindValue(Winpad, "Difficulty") or Tower.Difficulty,
+
+			BadgeID = FindValue(Winpad, "BadgeID") or 0,
+			PreventTowerBadge = FindValue(Winpad, "PreventTowerBadge") or false,
+
+			ParentTower = TowerName,
+			WinroomMarker = (FindValue(Winpad, "WinroomMarker") or FindValue(Winpad, "Winroom") or ""),
+		}
+
+		Tower.Endings[EndingID] = Ending
+
+		local function Touch(Hit: BasePart)
+			local IsPlayer, PlayerName = IsPlayerPart(Hit)
+			local Player: Types.PlayerInfo = Players[PlayerName]
+
+			if IsPlayer and not Player.TouchEventBusy then
+				if Winpad:GetAttribute("Debounce") then
 					return
 				end
-				
-				timers[Player.UserId] = nil
 
-				Player:SetAttribute("CurrentTower", "")
-				Player:LoadCharacter()
+				Winpad:SetAttribute("Debounce", true)
+				PlayerTouchedWinpad(Winpad, Player, EndingID)
+
+				task.delay(WINPAD_DEBOUNCE, function()
+					Winpad:SetAttribute("Debounce", false)
+				end)
 			end
 		end
-	end)
 
-	CommandsNamespace.packets.ForceWinpad.listen(function(Data: string, Executor: Player?)
-		if Executor and Utils.CheckPermissions(Executor) then
-			local Player = Players:FindFirstChild(Data) :: Player
-			
-			if Player then
-				local TowerName = Player:GetAttribute("CurrentTower")
-				local TowerFolder = workspace.Towers[TowerName] :: Folder
+		Winpad.Touched:Connect(Touch)
+	else
+		error('Could not setup winpad "' .. Winpad:GetFullName() .. " because it's parent tower does not exist")
+	end
 
-				if TowerFolder then
-					local Winpad = TowerFolder.Obby:FindFirstChild("WinPad") or TowerFolder.Obby:FindFirstChild("Winpad")
+	table.insert(Winpads, Winpad)
+end
 
-					if not Winpad then
-						Winpad = TowerFolder:FindFirstChild("WinPad") or TowerFolder:FindFirstChild("Winpad")
-					end
+function InitPortal(Portal: BasePart)
+	if not Portal then
+		return
+	end
 
-					if Winpad then
-						local EndingID: string = findValue(Winpad, "EndingID") or ""
+	local TowerName = FindValue(Portal, "TowerName")
+	local TowerRush = FindValue(Portal, "TowerRush")
 
-						if EndingID == "" then
-							Winpad:SetAttribute("EndingID", TowerName)
+	Portal:SetAttribute("Debounce", false)
 
-							EndingID = TowerName
-						end
-
-						Player:SetAttribute("DisableAC", true)
-						Player.Character:PivotTo(Winpad.CFrame * CFrame.new(0, Player.Character:GetExtentsSize(), 0))
-
-						Player.CharacterAdded:Once(function()
-							Player:SetAttribute("DisableAC", false)
-						end)
-					end
-				end
-			end
+	Portal.Touched:Connect(function(Hit)
+		if Portal:GetAttribute("Debounce") then
+			return
 		end
-	end)
 
-	CommandsNamespace.packets.ForceSpawnPoint.listen(function(Data: string, Executor: Player?)
-		if Executor and Utils.CheckPermissions(Executor) then
-			local Player = Players:FindFirstChild(Data) :: Player
-
-			if Player then
-				local TowerName = Player:GetAttribute("CurrentTower")
-				local Tower = workspace.Towers[TowerName]
-
-				if Tower then
-					Player.Character:PivotTo(
-						Tower.SpawnLocation.CFrame * CFrame.new(0, Player.Character:GetExtentsSize(), 0)
-					)
-				end
-			end
+		if not Hit then
+			return
 		end
-	end)
-
-	CommandsNamespace.packets.Lock.listen(function(Data: string, Executor: Player?)
-		if Executor and Utils.CheckPermissions(Executor) then
-			local Player = Players:FindFirstChild(Data) :: Player
-
-			if Player then
-				Player:SetAttribute("TowersLocked", true)
-			end
+		if not Hit.Parent or not Hit.Parent:FindFirstChildOfClass("Humanoid") then
+			return
 		end
-	end)
-	CommandsNamespace.packets.Unlock.listen(function(Data: string, Executor: Player?)
-		if Executor and Utils.CheckPermissions(Executor) then
-			local Player = Players:FindFirstChild(Data) :: Player
 
-			if Player then
-				Player:SetAttribute("TowersLocked", false)
+		local Character = Hit.Parent
+		local Player = PlayersService:GetPlayerFromCharacter(Hit.Parent)
+
+		if not Character or not Player then
+			return
+		end
+
+		if TowerName then
+			if Player:GetAttribute("CurrentTower") ~= "" or Player:GetAttribute("TowersLocked") then
+				return
 			end
+
+			Portal:SetAttribute("Debounce", true)
+			PlayerLoadTower(Players[Player.Name], TowerName, true)
+
+			task.delay(PORTAL_DEBOUNCE, function()
+				Portal:SetAttribute("Debounce", false)
+			end)
+		elseif TowerRush then
+			if Player:GetAttribute("CurrentTower") ~= "" or Player:GetAttribute("TowersLocked") then
+				return
+			end
+
+			Portal:SetAttribute("Debounce", true)
+			PlayerLoadTowerRush(Players[Player.Name], TowerRush)
+
+			task.delay(PORTAL_DEBOUNCE, function()
+				Portal:SetAttribute("Debounce", false)
+			end)
 		end
 	end)
 end
+
+function InitTower(TowerFolder: Folder)
+	local ClientSidedObjects = TowerFolder:FindFirstChild("ClientSidedObjects")
+
+	if TowerFolder:FindFirstChild("ClientSidedObjects") then
+		local TowerLink = Instance.new("ObjectValue")
+		TowerLink.Name = "TowerLink"
+		TowerLink.Value = TowerFolder
+		TowerLink.Parent = ClientSidedObjects
+
+		ClientSidedObjects.Name = TowerFolder.Name
+		ClientSidedObjects.Parent = ServerStorage.ClientObjects
+	end
+
+	local Acronym: string = TowerFolder.Name
+	local SpawnLocation: Instance? = TowerFolder:FindFirstChild("SpawnLocation")
+
+	if not (SpawnLocation and SpawnLocation:IsA("BasePart")) then
+		error(Acronym .. " does not have a SpawnLocation!")
+	end
+
+	local ClientObjects: Instance? = (
+		TowerFolder:FindFirstChild("ClientSidedObjects") or ServerStorage.ClientObjects:FindFirstChild(Acronym)
+	)
+
+	local CheckpointsFolder: Instance? = (
+		TowerFolder:FindFirstChild("Checkpoints") or TowerCheckpointsFolder:FindFirstChild(Acronym)
+	)
+
+	if CheckpointsFolder and CheckpointsFolder.Parent ~= TowerCheckpointsFolder then
+		CheckpointsFolder.Parent = TowerCheckpointsFolder
+		CheckpointsFolder.Name = Acronym
+	end
+
+	local CheckpointsList = {} :: { BasePart }
+	local CheckpointCount = 0
+
+	if CheckpointsFolder then
+		for CheckpointName, Checkpoint: Instance? in pairs(CheckpointsFolder:GetChildren()) do
+			if Checkpoint then
+				if Checkpoint:IsA("BasePart") then
+					table.insert(CheckpointsList, Checkpoint)
+				else
+					error(Acronym .. ": Checkpoint " .. CheckpointName .. " is not a BasePart")
+				end
+			else
+				error(Acronym .. ": Could not find checkpoint " .. CheckpointName)
+			end
+
+			CheckpointCount += 1
+		end
+	end
+
+	local Tower: Types.TowerInfo = {
+		Name = FindValue(TowerFolder, "ProperName") or Acronym,
+		Difficulty = FindValue(TowerFolder, "Difficulty") or "default",
+		BadgeID = FindValue(TowerFolder, "BadgeID") or 0,
+
+		Folder = TowerFolder,
+		SpawnLocation = SpawnLocation,
+		ClientObjects = ClientObjects,
+
+		Endings = {},
+
+		MinimumTime = FindValue(TowerFolder, "MinimumTime") or 0,
+		Checkpoints = CheckpointsList,
+		CheckpointCount = CheckpointCount,
+	}
+
+	InitiatedTowers[Acronym] = Tower
+
+	for k: number, v: Instance in TowerFolder:GetDescendants() do
+		if v.Name == "WinPad" and v:IsA("BasePart") then
+			InitWinpad(Acronym, v)
+		end
+	end
+
+	return Tower
+end
+
+function InitMarker(Marker: BasePart)
+	if Marker.Name == "LobbyTP" then
+		local SpawnLocation: Instance = Markers:WaitForChild("SpawnLocation")
+
+		if not (SpawnLocation and SpawnLocation:IsA("BasePart")) then
+			error("Could not initialize LobbyTP because a SpawnLocation couldn't be found")
+		end
+
+		local function Touch(Hit: BasePart)
+			local IsPlayer, PlayerName = IsPlayerPart(Hit)
+
+			if IsPlayer then
+				local Player = Players[PlayerName]
+
+				Player.Player.Team = Teams.Start
+				Player.Player.Character:PivotTo(SpawnLocation.CFrame)
+			end
+		end
+
+		Marker.Touched:Connect(Touch)
+	end
+end
+
+for _, Tower in pairs(Towers:GetChildren()) do
+	if Tower:HasTag("Tower") then
+		task.spawn(InitTower, Tower)
+	end
+end
+
+for _, Portal in pairs(Portals:GetChildren()) do
+	if Portal:IsA("BasePart") then
+		task.spawn(InitPortal, Portal)
+	end
+end
+
+for _, Marker in pairs(Markers:GetChildren()) do
+	if Marker:IsA("BasePart") then
+		task.spawn(InitMarker, Marker)
+	end
+end
+
+TowersNamespace.packets.FinishedLoading.listen(function(_Data: nil, Player: Player?)
+	if not Player then
+		return
+	end
+
+	Player:SetAttribute("LoadingTower", false)
+end)
+
+RunService.Stepped:Connect(Step)
+
+--------------------------------------------------------------------------------
+
+local CommandsNamespace = require(ReplicatedStorage:WaitForChild("Namespaces"):WaitForChild("Commands"))
+local Utils = require(ReplicatedStorage:WaitForChild("MTKCommands"):WaitForChild("Utils"))
+
+task.spawn(require(script.Cmdr))
+
+CommandsNamespace.packets.LoadTower.listen(
+	function(Data: { Player: string, TowerName: string, ResetTimer: boolean }, Executor: Player?)
+		if Executor and Utils.CheckPermissions(Executor) then
+			local Player = PlayersService:FindFirstChild(Data.Player) :: Player
+
+			if Player then
+				Player:SetAttribute("CurrentTower", Data.TowerName)
+
+				if (not Timers[Player.UserId]) or Data.ResetTimer then
+					Timers[Player.UserId] = 0
+				end
+			end
+		end
+	end
+)
+
+CommandsNamespace.packets.UnloadTower.listen(function(Data: string, Executor: Player?)
+	if Executor and Utils.CheckPermissions(Executor) then
+		local Player = PlayersService:FindFirstChild(Data) :: Player
+
+		if Player then
+			if Player:GetAttribute("TowersLocked") then
+				return
+			end
+
+			Timers[Player.UserId] = nil
+
+			Player:SetAttribute("CurrentTower", "")
+			Player:LoadCharacter()
+		end
+	end
+end)
+
+CommandsNamespace.packets.ForceWinpad.listen(function(Data: string, Executor: Player?)
+	if Executor and Utils.CheckPermissions(Executor) then
+		local Player = PlayersService:FindFirstChild(Data) :: Player
+
+		if Player then
+			local TowerName = Player:GetAttribute("CurrentTower")
+			local TowerFolder = Towers[TowerName] :: Folder
+
+			if TowerFolder then
+				local Winpad = TowerFolder.Obby:FindFirstChild("WinPad") or TowerFolder.Obby:FindFirstChild("Winpad")
+
+				if not Winpad then
+					Winpad = TowerFolder:FindFirstChild("WinPad") or TowerFolder:FindFirstChild("Winpad")
+				end
+
+				if Winpad then
+					local EndingID: string = FindValue(Winpad, "EndingID") or ""
+
+					if EndingID == "" then
+						Winpad:SetAttribute("EndingID", TowerName)
+
+						EndingID = TowerName
+					end
+
+					Player:SetAttribute("DisableAC", true)
+					Player.Character:PivotTo(Winpad.CFrame * CFrame.new(0, Player.Character:GetExtentsSize(), 0))
+
+					Player.CharacterAdded:Once(function()
+						Player:SetAttribute("DisableAC", false)
+					end)
+				end
+			end
+		end
+	end
+end)
+
+CommandsNamespace.packets.ForceSpawnPoint.listen(function(Data: string, Executor: Player?)
+	if Executor and Utils.CheckPermissions(Executor) then
+		local Player = PlayersService:FindFirstChild(Data) :: Player
+
+		if Player then
+			local TowerName = Player:GetAttribute("CurrentTower")
+			local Tower = InitiatedTowers[TowerName]
+
+			if Tower then
+				Player.Character:PivotTo(
+					Tower.SpawnLocation.CFrame * CFrame.new(0, Player.Character:GetExtentsSize(), 0)
+				)
+			end
+		end
+	end
+end)
+
+CommandsNamespace.packets.Lock.listen(function(Data: string, Executor: Player?)
+	if Executor and Utils.CheckPermissions(Executor) then
+		local Player = PlayersService:FindFirstChild(Data) :: Player
+
+		if Player then
+			Player:SetAttribute("TowersLocked", true)
+		end
+	end
+end)
+
+CommandsNamespace.packets.Unlock.listen(function(Data: string, Executor: Player?)
+	if Executor and Utils.CheckPermissions(Executor) then
+		local Player = PlayersService:FindFirstChild(Data) :: Player
+
+		if Player then
+			Player:SetAttribute("TowersLocked", false)
+		end
+	end
+end)
+
+--------------------------------------------------------------------------------
+
+function CharacterAdded(Character: Model)
+	local Player = PlayersService:GetPlayerFromCharacter(Character)
+
+	if Player then
+		task.defer(function()
+			if not KitSettings.ResetOnDeath and not Player:GetAttribute("LoadingTower") then
+				Player:SetAttribute("CurrentTower", "")
+			end
+		end)
+	end
+end
+
+function PlayerAdded(Player: Player)
+	if Player.Character then
+		task.spawn(CharacterAdded, Player.Character)
+	end
+
+	Player.CharacterAdded:Connect(CharacterAdded)
+	Leaderstats.InitPlayer(Player)
+
+	Player:SetAttribute("ForceRestarting", false)
+	Player:SetAttribute("CurrentTower", "")
+	Player:SetAttribute("LoadingTower", false)
+
+	Player:GetAttributeChangedSignal("ForceRestarting"):Connect(function()
+		if Player:GetAttribute("ForceRestarting") then
+			Timers[Player.UserId] = 0
+		end
+	end)
+
+	Player:GetAttributeChangedSignal("CurrentTower"):Connect(function()
+		if
+			not Player:GetAttribute("LoadingTower")
+			and ServerStorage.ClientObjects:FindFirstChild(Player:GetAttribute("CurrentTower"))
+		then
+			if Player:GetAttribute("TowersLocked") then
+				return
+			end
+
+			Player:SetAttribute("LoadingTower", true)
+			Player:LoadCharacter()
+
+			if Player.Character then
+				if Player:GetAttribute("CurrentTower") ~= "" then
+					local Tower = InitiatedTowers[Player:GetAttribute("CurrentTower")]
+					local Forcefield = Player.Character:FindFirstChildOfClass("ForceField")
+
+					Player.Character:PivotTo(Tower.SpawnLocation.CFrame)
+
+					if Forcefield then
+						Forcefield:Destroy()
+					end
+				end
+			end
+
+			Player.CharacterAdded:Once(function(Character)
+				if Player:GetAttribute("CurrentTower") ~= "" then
+					local Tower = InitiatedTowers[Player:GetAttribute("CurrentTower")]
+					local Forcefield = Character:FindFirstChildOfClass("ForceField")
+
+					Character:PivotTo(Tower.SpawnLocation.CFrame)
+
+					if Forcefield then
+						Forcefield:Destroy()
+					end
+				end
+			end)
+		end
+	end)
+
+	local Info: Types.PlayerInfo = {
+		Player = Player,
+		GameTimer = 0,
+		LastRestart = 0,
+
+		CurrentTowerRush = "",
+		CurrentTowerRushIndex = 0,
+
+		TouchEventBusy = false,
+	}
+
+	Players[Player.Name] = Info
+	Player.Team = Teams.Start
+end
+
+function PlayerRemoving(Player: Player)
+	if Timers[Player.UserId] then
+		Timers[Player.UserId] = nil
+	end
+
+	Players[Player.Name] = nil
+end
+
+for _, Player in pairs(PlayersService:GetPlayers()) do
+	task.spawn(PlayerAdded, Player)
+end
+
+PlayersService.PlayerAdded:Connect(PlayerAdded)
+PlayersService.PlayerRemoving:Connect(PlayerRemoving)

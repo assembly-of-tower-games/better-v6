@@ -176,11 +176,7 @@ function CharacterManager:Damage(damage: BasePart | string | number)
 		end)
 	end
 	
-	if typeof(damageAmount) == "string" then
-		TowersNamespace.packets.DamageEventS.send(damageAmount)
-	elseif typeof(damageAmount) == "number" then
-		TowersNamespace.packets.DamageEvent.send(damageAmount)
-	end
+	TowersNamespace.packets.DamageEvent.send(damageAmount)
 end
 
 --[=[

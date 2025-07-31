@@ -80,7 +80,7 @@ local function requestObjects()
 	local receivedObjects = nil
 	local connection = nil
 
-	TowersNamespace.packets.RequestCOFolder.send("request")
+	TowersNamespace.packets.RequestCOFolder.send("Replicate")
 
 	connection = Players.LocalPlayer.PlayerGui.ChildAdded:Connect(function(Child)
 		if Child:IsA("Folder") and Child:HasTag("ClientObjects") then
@@ -98,7 +98,7 @@ local function requestObjects()
 	local objects = receivedObjects:Clone()
 
 	receivedObjects:Destroy()
-	TowersNamespace.packets.RequestCOFolder.send("cleanup")
+	TowersNamespace.packets.RequestCOFolder.send("Cleanup")
 
 	objectScope = ClientObjectManager:LoadClientObjects(
 		objects,
@@ -151,22 +151,26 @@ AnnouncementsNamespace.packets.AdminAnnouncement.listen(function(Data: {Message:
 end)
 
 --> Handle MTKCommands
-local Cmdr = require(ReplicatedStorage:WaitForChild("CmdrClient") :: ModuleScript)
-local Button = TopbarPlus.new()
+local Utils = require(ReplicatedStorage.MTKCommands.Utils)
 
-Cmdr:SetPlaceName("MTKc")
-
-Button:setName("MTKCommands")
-Button:setImage("rbxassetid://11419714821")
-Button:setCaption("Command Bar")
-Button:setCaptionHint(Enum.KeyCode.F2)
-Button:align("Right")
-Button:oneClick()
-
-Button.selected:Connect(function()
-	if Button.isSelected then 
-		Cmdr:Show()
-	else
-		Cmdr:Hide()
-	end
-end)
+if Utils.CheckPermissions(Players.LocalPlayer) then 
+	local Cmdr = require(ReplicatedStorage:WaitForChild("CmdrClient") :: ModuleScript)
+	local Button = TopbarPlus.new()
+	
+	Cmdr:SetPlaceName("MTKc")
+	
+	Button:setName("MTKCommands")
+	Button:setImage("rbxassetid://11419714821")
+	Button:setCaption("Command Bar")
+	Button:setCaptionHint(Enum.KeyCode.F2)
+	Button:align("Right")
+	Button:oneClick()
+	
+	Button.selected:Connect(function()
+		if Button.isSelected then 
+			Cmdr:Show()
+		else
+			Cmdr:Hide()
+		end
+	end)
+end

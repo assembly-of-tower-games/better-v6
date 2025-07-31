@@ -1,21 +1,31 @@
 return {
+	-- Misc
+	-- Controls how many towers can be in a tower rush at once. This cannot go above 2^32 (~4 billion towers) or below 2^8 (256 towers).
+	TowerRushMaximum = 2^8,
+	
 	-- Win Messages
+	-- Controls the win message displayed in chat.
 	WinMessage = "{DisplayName} <i>(@{Username})</i> beat <b>{TowerName} [{Difficulty}]</b> in {Time}!",
 
 	-- Discord Webhooks
 	Webhooks = {
+		-- Controls the normal win message for the Discord webhooks.
 		Message = "{DisplayName} *(@{Username})* beat **{TowerName} [{DifficultyEmoji}]** in `{Time}` at {Timestamp}!",
 
+		-- Controls the webhook URLs.
 		Normal = "https://webhook.lewisakura.moe/api/webhooks/1373715043581034616/XP-Jdk7uIX5S9e0eKoZspF0El4UZS8bo-h1fLJ-gOMsq7VO6YKnQpcAgda3d4xmRqQ-l",
 		SC = "https://webhook.lewisakura.moe/api/webhooks/1373715043581034616/XP-Jdk7uIX5S9e0eKoZspF0El4UZS8bo-h1fLJ-gOMsq7VO6YKnQpcAgda3d4xmRqQ-l",
 
+		-- Used for Studio testing. If Enabled is false, it will default to the normal message and the Normal/SC webhook urls.
 		Testing = {
+			Enabled = false,
 			Message = "[TESTING] {DisplayName} *(@{Username})* beat **{TowerName} [{DifficultyEmoji}]** in `{Time}` at {Timestamp}!",
 
 			Normal = "https://webhook.lewisakura.moe/api/webhooks/1373715043581034616/XP-Jdk7uIX5S9e0eKoZspF0El4UZS8bo-h1fLJ-gOMsq7VO6YKnQpcAgda3d4xmRqQ-l",
 			SC = "https://webhook.lewisakura.moe/api/webhooks/1373715043581034616/XP-Jdk7uIX5S9e0eKoZspF0El4UZS8bo-h1fLJ-gOMsq7VO6YKnQpcAgda3d4xmRqQ-l",
 		},
 
+		-- List of Difficulty emoji IDs.
 		Difficulties = {
 			Easy = "1297256622019711056",
 			Medium = "1297256645482512465",
@@ -32,6 +42,7 @@ return {
 			Unreal = "",
 		},
 
+		-- List of Difficulty colour IDs, used for the chat win message.
 		DifficultyColours = {
 			Easy = Color3.fromRGB(117, 243, 71),
 			Medium = Color3.fromRGB(255, 254, 0),
