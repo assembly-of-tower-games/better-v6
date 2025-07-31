@@ -8,6 +8,7 @@ runs:
       uses: robinraju/release-downloader@v1.12
       with:
         repository: 'pesde-pkg/pesde'
+        latest: true
         fileName: '*linux-x86_64.tar.gz'
         extract: true
 
