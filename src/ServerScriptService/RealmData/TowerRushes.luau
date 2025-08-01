@@ -2,11 +2,8 @@ return {
 	Example = {
 		BadgeID = 0,
 		Title = "Example",
-		Difficulty = "Medium",
+		Difficulty = "Hard",
 		WinroomMarker = "",
-		Towers = {
-			"V5",
-			"V6",
-		},
+		Towers = table.create(5, "V5"),
 	},
 }

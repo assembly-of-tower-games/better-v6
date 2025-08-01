@@ -27,9 +27,8 @@ local TimerIcon = TopbarPlus.new()
 local TowerRushIcon = TopbarPlus.new()
 
 TimerIcon:setName("Timer")
-TimerIcon:setLabel("XX:XX.XX")
+TimerIcon:setLabel("00:00.00")
 TimerIcon:setImage(6761866149)
-TimerIcon:setEnabled(false)
 TimerIcon:align("Center")
 TimerIcon:oneClick(true)
 
@@ -43,12 +42,15 @@ TimerNamespace.packets.CorrectTimer.listen(function(Seconds: number)
 	TimerIcon:setLabel(ConvertTime(Seconds))
 end)
 
-TimerNamespace.packets.UpdateTowerRush.listen(function(Data:{ CurrentTower: number, TowerCount: number })
-	TowerRushIcon:setLabel(string.format("%s/%s", tostring(Data.CurrentTower), tostring(Data.TowerCount)))
-	TowerRushIcon:setEnabled(Data.CurrentTower >= 1)
+TimerNamespace.packets.UpdateTowerRush.listen(function(Data:{ CurrentTower: string, TowerCount: string, PlayerID: string })
+	if tonumber(Data.PlayerID) ~= Players.LocalPlayer.UserId then 
+		return
+	end
+
+	TowerRushIcon:setLabel(string.format("%s/%s", Data.CurrentTower, Data.TowerCount))
+	TowerRushIcon:setEnabled(tonumber(Data.CurrentTower) >= 1)
 end)
 
 Players.LocalPlayer:GetAttributeChangedSignal("CurrentTower"):Connect(function()
-	TimerIcon:setEnabled(Players.LocalPlayer:GetAttribute("CurrentTower") ~= "")
-	TimerIcon:setLabel(Players.LocalPlayer:GetAttribute("CurrentTower") ~= "" and "XX:XX.XX" or "00:00.00")
+	TimerIcon:setLabel("00:00.00")
 end)

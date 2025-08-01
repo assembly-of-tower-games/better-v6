@@ -1,16 +1,12 @@
-return {
-	-- Misc
-	-- Controls how many towers can be in a tower rush at once. This cannot go above 2^32 (~4 billion towers) or below 2^8 (256 towers).
-	TowerRushMaximum = 2^8,
-	
+return {	
 	-- Win Messages
 	-- Controls the win message displayed in chat.
-	WinMessage = "{DisplayName} <i>(@{Username})</i> beat <b>{TowerName} [{Difficulty}]</b> in {Time}!",
+	WinMessage = "{DisplayName} <i>(@{Username})</i> has beaten <b>{TowerName} [{Difficulty}]</b> in {Time}!",
 
 	-- Discord Webhooks
 	Webhooks = {
 		-- Controls the normal win message for the Discord webhooks.
-		Message = "{DisplayName} *(@{Username})* beat **{TowerName} [{DifficultyEmoji}]** in `{Time}` at {Timestamp}!",
+		Message = "{DisplayName} *(@{Username})* has beaten **{TowerName} [{DifficultyEmoji}]** in `{Time}`!",
 
 		-- Controls the webhook URLs.
 		Normal = "https://webhook.lewisakura.moe/api/webhooks/1373715043581034616/XP-Jdk7uIX5S9e0eKoZspF0El4UZS8bo-h1fLJ-gOMsq7VO6YKnQpcAgda3d4xmRqQ-l",
@@ -19,7 +15,7 @@ return {
 		-- Used for Studio testing. If Enabled is false, it will default to the normal message and the Normal/SC webhook urls.
 		Testing = {
 			Enabled = false,
-			Message = "[TESTING] {DisplayName} *(@{Username})* beat **{TowerName} [{DifficultyEmoji}]** in `{Time}` at {Timestamp}!",
+			Message = "[TESTING] {DisplayName} *(@{Username})* has beaten **{TowerName} [{DifficultyEmoji}]** in `{Time}`!",
 
 			Normal = "https://webhook.lewisakura.moe/api/webhooks/1373715043581034616/XP-Jdk7uIX5S9e0eKoZspF0El4UZS8bo-h1fLJ-gOMsq7VO6YKnQpcAgda3d4xmRqQ-l",
 			SC = "https://webhook.lewisakura.moe/api/webhooks/1373715043581034616/XP-Jdk7uIX5S9e0eKoZspF0El4UZS8bo-h1fLJ-gOMsq7VO6YKnQpcAgda3d4xmRqQ-l",

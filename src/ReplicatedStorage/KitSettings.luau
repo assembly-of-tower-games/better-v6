@@ -4,8 +4,7 @@ return {
 	DisplaySettingsGui = true,
 
 	-- Debug Config
-	DisplayDebugGuis = false,
-	DisplayMemoryDebug = false,
+	StartupTime = true,
 
 	-- Winpads
 	WinpadSettings = {

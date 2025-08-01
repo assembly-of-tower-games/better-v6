@@ -21,6 +21,12 @@ local TowerCheckpointsFolder = ServerStorage.TowerCheckpointsFolder
 local TowerRushes = require(RealmData.TowerRushes) :: Types.Dictionary<Types.TowerRush>
 local KitSettings = require(ReplicatedStorage.KitSettings)
 
+local StartTime = tick()
+
+if KitSettings.StartupTime then
+	print("BetterV6 Server has started loading.")
+end
+
 local TowersNamespace = require(Namespaces.Towers)
 local TimerNamespace = require(Namespaces.Timer)
 local AnnouncementsNamespace = require(Namespaces.Announcements)
@@ -88,6 +94,14 @@ end
 function ResetPlayerInfo(Player: Types.PlayerInfo)
 	Player.CurrentTowerRush = ""
 	Player.CurrentTowerRushIndex = 0
+
+	local SentData = {
+		CurrentTower = 0,
+		TowerCount = 0,
+		PlayerID = tostring(Player.Player.UserId),
+	}
+
+	TimerNamespace.packets.UpdateTowerRush.sendToAll(SentData)
 end
 
 function Step(Time: number, DeltaTime: number)
@@ -399,8 +413,8 @@ function PlayerLoadTower(Player: Types.PlayerInfo, TowerName: string, ResetTimer
 		return
 	end
 
+	Player.Player:SetAttribute("CurrentTower", "")
 	Player.Player:SetAttribute("CurrentTower", TowerName)
-	print("test")
 
 	if ResetTimer then
 		Timers[Player.Player.UserId] = 0
@@ -420,41 +434,27 @@ function OnPlayerWin(
 end
 
 function PlayerLoadTowerRush(Player: Types.PlayerInfo, TowerRushName: string)
-	print("a")
-
 	if not Player.Player or Player.Player:GetAttribute("LoadingTower") then
 		return
 	end
 
-	print("b")
-	print(TowerRushName)
-
 	local TowerRush = TowerRushes[TowerRushName]
 
-	print("c")
-	print(TowerRushes)
-	print(TowerRush)
-
 	if TowerRush then
-		print("d")
-
 		Player.CurrentTowerRush = TowerRushName
 		Player.CurrentTowerRushIndex = 1
-
-		print("e")
 
 		local FirstTower = TowerRush.Towers[1]
 		local TowerCount = #TowerRush.Towers
 
-		print("f")
-
-		PlayerLoadTower(Player, FirstTower, true)
-		TimerNamespace.packets.UpdateTowerRush.sendTo({
+		local SentData = {
 			CurrentTower = 1,
 			TowerCount = TowerCount,
-		}, Player)
+			PlayerID = tostring(Player.Player.UserId),
+		}
 
-		print("g")
+		TimerNamespace.packets.UpdateTowerRush.sendToAll(SentData)
+		PlayerLoadTower(Player, FirstTower, true)
 	end
 end
 
@@ -478,12 +478,14 @@ function AdvanceTowerRush(PlayerName: string)
 				Player.CurrentTowerRushIndex += 1
 
 				local TowerName: string = TowerRush.Towers[Player.CurrentTowerRushIndex]
+				local SentData = {
+					CurrentTower = tostring(Player.CurrentTowerRushIndex),
+					TowerCount = tostring(TowerCount),
+					PlayerID = tostring(Player.Player.UserId),
+				}
 
+				TimerNamespace.packets.UpdateTowerRush.sendToAll(SentData)
 				PlayerLoadTower(Player, TowerName, false)
-				TimerNamespace.packets.UpdateTowerRush.sendTo(
-					{ CurrentTower = Player.CurrentTowerRushIndex, TowerCount = TowerCount },
-					Player
-				)
 			end
 		end
 	end
@@ -495,15 +497,16 @@ local WINPAD_DEBOUNCE = 0.5
 local PORTAL_DEBOUNCE = 0.5
 
 function PlayerTouchedWinpad(Winpad: BasePart, Player: Types.PlayerInfo, EndingID: string)
-	print("a")
 	local TowerName = FindValue(Winpad, "TowerName")
 	local Tower = Towers:FindFirstChild(TowerName)
-	print("b")
 
-	if Player.Player:GetAttribute("CurrentTower") ~= TowerName or Player.Player:GetAttribute("TowersLocked") then
+	if Player.Player:GetAttribute("TowersLocked") then
 		return
 	end
-	print("c")
+
+	if Player.Player:GetAttribute("CurrentTower") ~= TowerName or Player.Player:GetAttribute("CurrentTower") == "" then
+		return
+	end
 
 	if Player.CurrentTowerRush == "" then
 		local TowerInfo: Types.TowerInfo = InitiatedTowers[TowerName]
@@ -516,12 +519,14 @@ function PlayerTouchedWinpad(Winpad: BasePart, Player: Types.PlayerInfo, EndingI
 			EndingWinroom = Ending.WinroomMarker
 		end
 
-		Timers[Player.Player.UserId] = nil
-
-		TimerNamespace.packets.UpdateTowerRush.sendTo({
+		local SentData = {
 			CurrentTower = 0,
 			TowerCount = 0,
-		}, Player)
+			PlayerID = tostring(Player.Player.UserId),
+		}
+
+		Timers[Player.Player.UserId] = nil
+		TimerNamespace.packets.UpdateTowerRush.sendToAll(SentData)
 
 		OnPlayerWin(Player, PlayerTime, Tower)
 		TeleportToWinroom(Player, EndingWinroom)
@@ -634,29 +639,21 @@ function InitPortal(Portal: BasePart)
 			return
 		end
 
-		if TowerName then
-			if Player:GetAttribute("CurrentTower") ~= "" or Player:GetAttribute("TowersLocked") then
-				return
-			end
-
-			Portal:SetAttribute("Debounce", true)
-			PlayerLoadTower(Players[Player.Name], TowerName, true)
-
-			task.delay(PORTAL_DEBOUNCE, function()
-				Portal:SetAttribute("Debounce", false)
-			end)
-		elseif TowerRush then
-			if Player:GetAttribute("CurrentTower") ~= "" or Player:GetAttribute("TowersLocked") then
-				return
-			end
-
-			Portal:SetAttribute("Debounce", true)
-			PlayerLoadTowerRush(Players[Player.Name], TowerRush)
-
-			task.delay(PORTAL_DEBOUNCE, function()
-				Portal:SetAttribute("Debounce", false)
-			end)
+		if Player:GetAttribute("CurrentTower") ~= "" or Player:GetAttribute("TowersLocked") then
+			return
 		end
+
+		Portal:SetAttribute("Debounce", true)
+
+		if TowerName then
+			PlayerLoadTower(Players[Player.Name], TowerName, true)
+		elseif TowerRush then
+			PlayerLoadTowerRush(Players[Player.Name], TowerRush)
+		end
+
+		task.delay(PORTAL_DEBOUNCE, function()
+			Portal:SetAttribute("Debounce", false)
+		end)
 	end)
 end
 
@@ -911,6 +908,7 @@ function CharacterAdded(Character: Model)
 	if Player then
 		task.defer(function()
 			if not KitSettings.ResetOnDeath and not Player:GetAttribute("LoadingTower") then
+				ResetPlayerInfo(Players[Player.Name])
 				Player:SetAttribute("CurrentTower", "")
 			end
 		end)
@@ -964,7 +962,7 @@ function PlayerAdded(Player: Player)
 				if Player:GetAttribute("CurrentTower") ~= "" then
 					local Tower = InitiatedTowers[Player:GetAttribute("CurrentTower")]
 					local Forcefield = Character:FindFirstChildOfClass("ForceField")
-
+					
 					Character:PivotTo(Tower.SpawnLocation.CFrame)
 
 					if Forcefield then
@@ -1004,3 +1002,7 @@ end
 
 PlayersService.PlayerAdded:Connect(PlayerAdded)
 PlayersService.PlayerRemoving:Connect(PlayerRemoving)
+
+if KitSettings.StartupTime then
+	print(`BetterV6 Server has finished loading in {string.format("%1f", tick() - StartTime)} seconds.`)
+end

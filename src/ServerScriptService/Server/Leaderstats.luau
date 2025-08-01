@@ -30,8 +30,6 @@ function Module.InitPlayer(Player: Player)
 end
 
 function Module.Step(DeltaTime: number)
-    print(DeltaTime)
-
 	for _, Info in pairs(Players) do 
         Info.RealTime += DeltaTime
         Info.Time.Value = math.floor(Info.RealTime)

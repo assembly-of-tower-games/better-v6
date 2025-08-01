@@ -225,7 +225,7 @@ end
 function ClientObjectManager:LoadClientObjects(
 	from: Instance,
 	target: Instance,
-	tower: string,
+	towerName: string,
 	towerRepository: Instance?
 )
 	if not from.Parent then
@@ -234,10 +234,11 @@ function ClientObjectManager:LoadClientObjects(
 		from.Parent = script
 	end
 
-	
+	self:Unload()
+
 	local thisRepository = getRepository(towerRepository)
 	local rootScope = ScopeConstructor.new({
-		tower = tower,
+		tower = towerName,
 		clientObjects = target,
 		repository = thisRepository,
 	})
@@ -308,10 +309,13 @@ function ClientObjectManager:LoadClientObjects(
 
 	--> Deregister any lighting presets & cleanup variables on scope cleanup
 	local tower = rootScope.tower
+
 	rootScope:add(function()
 		LightingManager:DeregisterPreset(tower)
+
 		table.clear(rootScope.activeScripts)
 		table.clear(thisRepository)
+
 		rootScope = nil :: any
 	end)
 
@@ -319,7 +323,7 @@ function ClientObjectManager:LoadClientObjects(
 end
 
 function ClientObjectManager:Unload()
-	--V5Loader:Unload()
+	V5Loader:Unload()
 end
 
 function ClientObjectManager:Init()

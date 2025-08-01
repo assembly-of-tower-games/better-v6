@@ -11,8 +11,9 @@ return ByteNet.defineNamespace("Timer", function()
 
 			UpdateTowerRush = ByteNet.definePacket({
 				value = ByteNet.struct({
-					CurrentTower = ByteNet.int32,
-					TowerCount = ByteNet.int32
+					CurrentTower = ByteNet.string,
+					TowerCount = ByteNet.string,
+					PlayerID = ByteNet.string
 				})
 			})
 		},

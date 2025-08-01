@@ -37,6 +37,12 @@ local AnnouncementsNamespace = require(Namespaces.Announcements)
 local Kit = ReplicatedStorage.Framework.Kit
 local KitSettings = require(ReplicatedStorage.KitSettings)
 
+local StartTime = tick()
+
+if KitSettings.StartupTime then 
+	print("BetterV6 Client has started loading.")
+end
+
 --> Disable some stuff
 StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.EmotesMenu, false)
 
@@ -80,6 +86,7 @@ local function requestObjects()
 	local receivedObjects = nil
 	local connection = nil
 
+	ClientParts:ClearAllChildren()
 	TowersNamespace.packets.RequestCOFolder.send("Replicate")
 
 	connection = Players.LocalPlayer.PlayerGui.ChildAdded:Connect(function(Child)
@@ -119,9 +126,6 @@ end
 
 --> Reset objects on respawn
 Players.LocalPlayer.CharacterAdded:Connect(function()
-	print(KitSettings.ResetOnDeath and towerName == Players.LocalPlayer:GetAttribute("CurrentTower"))
-	print(Players.LocalPlayer:GetAttribute("LoadingTower"))
-
 	if objectScope then
 		objectScope:cleanup(false, true)
 		objectScope = nil :: any
@@ -173,4 +177,8 @@ if Utils.CheckPermissions(Players.LocalPlayer) then
 			Cmdr:Hide()
 		end
 	end)
+end
+
+if KitSettings.StartupTime then 
+	print(`BetterV6 Client has finished loading in {string.format("%1f", tick() - StartTime)} seconds.`)
 end

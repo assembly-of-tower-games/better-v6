@@ -4,9 +4,13 @@ type Thread = {
 	init: () -> (),
 	run: () -> (),
 	cleanup: () -> (),
+
+	thread: Instance,
+	name: string,
 }
 
 local Thread = {} :: Thread
+local Task = nil :: thread | nil
 
 function Thread.init(NewContext: ModuleScript)
 	Context = NewContext
@@ -17,7 +21,7 @@ function Thread.run()
 		task.spawn(function()
 			local Success, Error = pcall(function()
 				if Context then
-					(require(Context) :: () -> ())()
+					Task = task.spawn(require(Context) :: () -> ())
 				else
 					error("No Context found")
 				end
@@ -31,7 +35,16 @@ function Thread.run()
 end
 
 function Thread.cleanup()
-	
+	if Task then
+		task.cancel(Task)
+		Task = nil
+	end
+
+	if Thread.thread then
+		Thread.thread:Destroy()
+	end
+
+	script:Destroy()
 end
 
 return Thread
