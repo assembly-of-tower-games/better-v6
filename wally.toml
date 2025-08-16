@@ -1,0 +1,9 @@
+[package]
+name = "primiti-ve/betterv6"
+version = "0.1.0"
+registry = "https://github.com/UpliftGames/wally-index"
+realm = "shared"
+
+[dependencies]
+ByteNet = "elitriare/bytenet-max@0.2.5"
+TopbarPlus = "1foreverhd/topbarplus@3.3.1"

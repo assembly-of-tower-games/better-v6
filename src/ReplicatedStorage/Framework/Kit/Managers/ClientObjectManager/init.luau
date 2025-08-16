@@ -98,11 +98,8 @@ local function traverseFolders(folder: Instance, repository: Repo, startingPath:
 	end
 end
 
-local function getRepository(overrideRepository: Instance?)
+local function getRepository()
 	local repository = {}
-	if overrideRepository then
-		traverseFolders(overrideRepository, repository)
-	end
 	traverseFolders(ReplicatedStorage.Assets.Repository, repository)
 	return repository
 end
@@ -226,7 +223,6 @@ function ClientObjectManager:LoadClientObjects(
 	from: Instance,
 	target: Instance,
 	towerName: string,
-	towerRepository: Instance?
 )
 	if not from.Parent then
 		-- Temporarily parent container under this script so CollectionService
@@ -236,7 +232,7 @@ function ClientObjectManager:LoadClientObjects(
 
 	self:Unload()
 
-	local thisRepository = getRepository(towerRepository)
+	local thisRepository = getRepository()
 	local rootScope = ScopeConstructor.new({
 		tower = towerName,
 		clientObjects = target,

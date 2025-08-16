@@ -4,6 +4,9 @@ return {
 		Title = "Example",
 		Difficulty = "Hard",
 		WinroomMarker = "",
-		Towers = table.create(5, "V5"),
+		Towers = {
+			"V5",
+			"V6"
+		},
 	},
 }

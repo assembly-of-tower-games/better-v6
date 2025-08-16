@@ -10,19 +10,24 @@ env:
   GH_TOKEN: ${{ github.token }}
 
 jobs: 
-  deploy:
+  Release:
     if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Main
         uses: actions/checkout@v4
-      
-      - name: Install Pesde
-        uses: ./.github/actions/setup-pesde
+
+      - name: Install RoKit
+        uses: CompeyDev/setup-rokit@v0.1.2
+        with:
+          token: ${{ github.token }}
 
       - name: Install Dependencies
-        run: pesde install
+        run: wally install
+
+      - name: Create Packages Directory
+        run: mkdir -p Packages
 
       - name: Build BetterV6.rbxm
         run: rojo build -o BetterV6.rbxm pack.project.json
@@ -33,12 +38,12 @@ jobs:
           name: BetterV6
           path: BetterV6.rbxm
 
-      - name: Get Version from pesde.toml
+      - name: Get Release from wally.toml
         uses: SebRollen/toml-action@v1.0.0
         id: read_toml
         with: 
-          file: 'pesde.toml'
-          field: 'version'
+          file: 'wally.toml'
+          field: 'package.version'
 
       - name: Release
         uses: softprops/action-gh-release@v1

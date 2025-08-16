@@ -28,9 +28,6 @@ local GeneralChannel = TextChatService:WaitForChild("TextChannels"):WaitForChild
 
 local Namespaces = ReplicatedStorage.Namespaces
 
-local Packages = ReplicatedStorage.Packages
-local TopbarPlus = require(Packages.TopbarPlus)
-
 local TowersNamespace = require(Namespaces.Towers)
 local AnnouncementsNamespace = require(Namespaces.Announcements)
 
@@ -70,7 +67,6 @@ local ClientParts = Workspace:FindFirstChild("ClientParts")
 	end)()
 
 --> Request server for objects
-local customRepository = ReplicatedStorage:FindFirstChild("ExternalRepositories")
 local towerName = ""
 
 local currentlyLoading = false
@@ -110,8 +106,7 @@ local function requestObjects()
 	objectScope = ClientObjectManager:LoadClientObjects(
 		objects,
 		ClientParts,
-		towerName,
-		customRepository:FindFirstChild(towerName)
+		towerName
 	)
 
 	currentlyLoading = false
@@ -150,34 +145,6 @@ end)
 AnnouncementsNamespace.packets.WinAnnouncement.listen(function(Data: {Text: string, Colour: Color3})
 	GeneralChannel:DisplaySystemMessage(Data.Text)
 end)
-AnnouncementsNamespace.packets.AdminAnnouncement.listen(function(Data: {Message: string, PlayerName: string}, _Player: Player?)
-	GeneralChannel:DisplaySystemMessage(string.format("[%s] %s", Data.PlayerName, Data.Message))
-end)
-
---> Handle MTKCommands
-local Utils = require(ReplicatedStorage.MTKCommands.Utils)
-
-if Utils.CheckPermissions(Players.LocalPlayer) then 
-	local Cmdr = require(ReplicatedStorage:WaitForChild("CmdrClient") :: ModuleScript)
-	local Button = TopbarPlus.new()
-	
-	Cmdr:SetPlaceName("MTKc")
-	
-	Button:setName("MTKCommands")
-	Button:setImage("rbxassetid://11419714821")
-	Button:setCaption("Command Bar")
-	Button:setCaptionHint(Enum.KeyCode.F2)
-	Button:align("Right")
-	Button:oneClick()
-	
-	Button.selected:Connect(function()
-		if Button.isSelected then 
-			Cmdr:Show()
-		else
-			Cmdr:Hide()
-		end
-	end)
-end
 
 if KitSettings.StartupTime then 
 	print(`BetterV6 Client has finished loading in {string.format("%1f", tick() - StartTime)} seconds.`)
