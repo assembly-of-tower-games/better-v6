@@ -26,9 +26,6 @@ jobs:
       - name: Install Dependencies
         run: wally install
 
-      - name: Create Packages Directory
-        run: mkdir -p Packages
-
       - name: Build BetterV6.rbxm
         run: rojo build -o BetterV6.rbxm pack.project.json
 
